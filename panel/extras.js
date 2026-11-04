@@ -27,7 +27,7 @@ module.exports = function createExtras(ctx) {
   const UPDATE_LOG = path.join(LOG_DIR, 'update.log');
   const VERSION_FILE = path.join(BASE_DIR, 'VERSION');
   const PUBLIC_DIR = path.join(__dirname, 'public');
-  const REMOTE_RAW = 'https://raw.githubusercontent.com/austinoffc/AustinNode/main';
+  const REMOTE_RAW = 'https://raw.githubusercontent.com/austinoffc/AustinServer/main';
 
   const NAME_RE = /^[A-Za-z0-9_-]{1,40}$/;
   const isWin = os.platform() === 'win32';
@@ -898,7 +898,7 @@ module.exports = function createExtras(ctx) {
       };
     }
     if (r.status === 404) {
-      return { ok: true, local, remote: null, hasUpdate: false, message: 'File VERSION belum ada di repo austinoffc/AustinNode (branch main).' };
+      return { ok: true, local, remote: null, hasUpdate: false, message: 'File VERSION belum ada di repo austinoffc/AustinServer (branch main).' };
     }
     return { ok: false, local, message: 'Tidak dapat menghubungi GitHub. Periksa koneksi internet.' };
   }

@@ -44,8 +44,8 @@ Ambil dari [F-Droid](https://f-droid.org/packages/com.termux/) atau GitHub Relea
 
 ```bash
 pkg update -y && pkg install git -y
-git clone https://github.com/austinoffc/AustinNode.git
-cd AustinNode
+git clone https://github.com/austinoffc/AustinServer.git
+cd AustinServer
 bash install.sh
 ```
 
@@ -150,7 +150,7 @@ Di Termux:
 | `austin-update` | Memperbarui ke versi terbaru |
 | `termux-fix` | Memperbaiki dpkg Termux yang macet |
 
-Pilihan lain lewat skrip: `bash ~/AustinNode/start.sh [status|stop|restart]`.
+Pilihan lain lewat skrip: `bash ~/AustinServer/start.sh [status|stop|restart]`.
 
 Di dalam Ubuntu:
 
@@ -179,7 +179,7 @@ Mengecek versi: `cat VERSION`.
 
 1. Ubah isi file `VERSION` (misalnya dari `1.0.0` jadi `1.0.1`).
 2. Tambahkan catatan di bagian atas `CHANGELOG.md`.
-3. Push ke branch `main` di `austinoffc/AustinNode`.
+3. Push ke branch `main` di `austinoffc/AustinServer`.
 
 Panel akan menampilkan "Versi baru tersedia" begitu angka di repo lebih besar dari yang terpasang.
 
@@ -188,7 +188,7 @@ Panel akan menampilkan "Versi baru tersedia" begitu angka di repo lebih besar da
 ## Struktur folder
 
 ```text
-AustinNode/
+AustinServer/
 ├── install.sh          Installer otomatis
 ├── start.sh            Menyalakan / menghentikan layanan
 ├── update.sh           Skrip pembaruan

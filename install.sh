@@ -22,18 +22,21 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets
 
 clear
 echo -e "${CYAN}=================================================================="
-echo "    __     ___            __   __   __      ____                         "
-echo "    \ \   / (_)   _____   \ \ / /  / /_    / ___|  ___ _ ____   _____ _ __ "
-echo "     \ \ / /| \ \ / / _ \  \ V /  | '_ \   \___ \ / _ \ '__\ \ / / _ \ '__|"
-echo "      \ V / | |\ V / (_) |  | |   | (_) |   ___) |  __/ |   \ V /  __/ |   "
-echo "       \_/  |_| \_/ \___/   |_|    \___/   |____/ \___|_|    \_/ \___|_|   "
+cat << 'BANNER'
+    _             _   _          ____                             
+   / \  _   _ ___| |_(_)_ __    / ___|  ___ _ ____   _____ _ __ 
+  / _ \| | | / __| __| | '_ \   \___ \ / _ \ '__\ \ / / _ \ '__|
+ / ___ \ |_| \__ \ |_| | | | |   ___) |  __/ |   \ V /  __/ |   
+/_/   \_\__,_|___/\__|_|_| |_|  |____/ \___|_|    \_/ \___|_|   
+BANNER
 echo "=================================================================="
 echo -e " 🚀 Master 1-Click Installer (Austin Mini Server & VPS Ubuntu)      "
 echo -e "==================================================================${NC}"
 echo ""
 
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
-[ -d "$SRC_DIR" ] && BASE_DIR="$SRC_DIR" || BASE_DIR="$HOME/AustinNode"
+chmod +x "$SRC_DIR"/*.sh "$SRC_DIR"/scripts/*.sh 2>/dev/null || true
+[ -d "$SRC_DIR" ] && BASE_DIR="$SRC_DIR" || BASE_DIR="$HOME/AustinServer"
 UBUNTU_DIR="$HOME/ubuntu-fs"
 
 # -----------------------------------------------------------------------------
@@ -139,6 +142,7 @@ mkdir -p "$BASE_DIR/logs" "$BASE_DIR/panel" "$BASE_DIR/apps" "$BASE_DIR/scripts"
 [ -d "$SRC_DIR/panel" ] && cp -r "$SRC_DIR/panel/"* "$BASE_DIR/panel/" 2>/dev/null || true
 [ -d "$SRC_DIR/apps" ] && cp -r "$SRC_DIR/apps/"* "$BASE_DIR/apps/" 2>/dev/null || true
 [ -d "$SRC_DIR/scripts" ] && cp -r "$SRC_DIR/scripts/"* "$BASE_DIR/scripts/" 2>/dev/null || true
+chmod +x "$BASE_DIR"/scripts/*.sh 2>/dev/null || true
 [ -f "$SRC_DIR/start.sh" ] && cp "$SRC_DIR/start.sh" "$HOME/start.sh" && cp "$SRC_DIR/start.sh" "$BASE_DIR/start.sh" && chmod +x "$HOME/start.sh" "$BASE_DIR/start.sh"
 
 # -----------------------------------------------------------------------------
@@ -302,12 +306,14 @@ EOF
     cat << 'EOF' > "$PREFIX_BIN/austin-update"
 #!/data/data/com.termux/files/usr/bin/bash
 # Austin Mini Server — Author: Austin
-if [ -f "$HOME/AustinNode/update.sh" ]; then
+if [ -f "$HOME/AustinServer/update.sh" ]; then
+    bash "$HOME/AustinServer/update.sh"
+elif [ -f "$HOME/AustinNode/update.sh" ]; then
     bash "$HOME/AustinNode/update.sh"
 elif [ -f "$HOME/panel/update.sh" ]; then
     bash "$HOME/panel/update.sh"
 else
-    curl -sL https://raw.githubusercontent.com/austinoffc/AustinNode/main/update.sh | bash
+    curl -sL https://raw.githubusercontent.com/austinoffc/AustinServer/main/update.sh | bash
 fi
 EOF
     chmod +x "$PREFIX_BIN/austin-update"
@@ -391,12 +397,13 @@ echo -e "${GREEN}✓ Cache instalasi dibersihkan (Penyimpanan berhasil dioptimal
 # -----------------------------------------------------------------------------
 echo -e "${YELLOW}[6/6] Menyiapkan autostart Termux:Boot & Menjalankan Server...${NC}"
 
+# Autostart via Termux:Boot (aplikasi Termux:Boot harus terpasang & dibuka sekali)
 BOOT_DIR="$HOME/.termux/boot"
 mkdir -p "$BOOT_DIR"
 cat << 'EOF' > "$BOOT_DIR/start-server.sh"
 #!/data/data/com.termux/files/usr/bin/bash
-sleep 15
 termux-wake-lock 2>/dev/null || true
+sleep 15
 bash "$HOME/start.sh" >/dev/null 2>&1 &
 EOF
 chmod +x "$BOOT_DIR/start-server.sh"
@@ -407,7 +414,7 @@ echo -e "${GREEN}│        ✅ INSTALASI AUSTIN MINI SERVER BERHASIL SELESAI!  
 echo -e "${GREEN}├─────────────────────────────────────────────────────────────┤${NC}"
 echo -e "   • Seluruh paket & dependensi telah berhasil dipasang."
 echo -e "   • Cache & sisa installer telah dibersihkan secara otomatis."
-echo -e "   • Autostart boot Termux telah disiapkan."
+echo -e "   • Autostart Termux:Boot telah disiapkan."
 echo -e "${GREEN}└─────────────────────────────────────────────────────────────┘${NC}"
 echo ""
 echo -e "${YELLOW}>> Menjalankan server sekarang...${NC}"

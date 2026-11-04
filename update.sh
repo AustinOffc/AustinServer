@@ -16,8 +16,8 @@ echo -e "${CYAN}======================================================${NC}"
 echo -e "${CYAN}       AUSTIN MINI SERVER — AUTO UPDATE SYSTEM          ${NC}"
 echo -e "${CYAN}======================================================${NC}"
 
-REPO_URL="https://github.com/austinoffc/AustinNode.git"
-ZIP_URL="https://github.com/austinoffc/AustinNode/archive/refs/heads/main.zip"
+REPO_URL="https://github.com/austinoffc/AustinServer.git"
+ZIP_URL="https://github.com/austinoffc/AustinServer/archive/refs/heads/main.zip"
 
 export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 [ -z "$HOME" ] || [ "$HOME" = "/" ] || [ "$HOME" = "/root" ] && [ -d "/data/data/com.termux/files/home" ] && export HOME="/data/data/com.termux/files/home"
@@ -25,12 +25,14 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PATH"
 
 if [ -f "./panel/server.js" ]; then
     SERVER_DIR="$(pwd)"
+elif [ -d "$HOME/AustinServer" ]; then
+    SERVER_DIR="$HOME/AustinServer"
 elif [ -d "$HOME/AustinNode" ]; then
     SERVER_DIR="$HOME/AustinNode"
 elif [ -d "$HOME/panel" ]; then
     SERVER_DIR="$HOME/panel"
 else
-    SERVER_DIR="$HOME/AustinNode"
+    SERVER_DIR="$HOME/AustinServer"
     mkdir -p "$SERVER_DIR"
 fi
 
@@ -80,19 +82,19 @@ if [ "$UPDATED" = false ]; then
     if [ -f "$TEMP_ZIP" ] && [ -s "$TEMP_ZIP" ]; then
         if command -v unzip >/dev/null 2>&1; then
             unzip -q -o "$TEMP_ZIP" -d "$HOME" 2>/dev/null || true
-            if [ -d "$HOME/AustinNode-main" ]; then
-                cp -rf "$HOME/AustinNode-main/"* "$SERVER_DIR/" 2>/dev/null || true
-                cp -rf "$HOME/AustinNode-main/."* "$SERVER_DIR/" 2>/dev/null || true
-                rm -rf "$HOME/AustinNode-main" "$TEMP_ZIP" 2>/dev/null || true
+            if [ -d "$HOME/AustinServer-main" ]; then
+                cp -rf "$HOME/AustinServer-main/"* "$SERVER_DIR/" 2>/dev/null || true
+                cp -rf "$HOME/AustinServer-main/."* "$SERVER_DIR/" 2>/dev/null || true
+                rm -rf "$HOME/AustinServer-main" "$TEMP_ZIP" 2>/dev/null || true
                 UPDATED=true
             fi
         else
             pkg install unzip -y 2>/dev/null || true
             unzip -q -o "$TEMP_ZIP" -d "$HOME" 2>/dev/null || true
-            if [ -d "$HOME/AustinNode-main" ]; then
-                cp -rf "$HOME/AustinNode-main/"* "$SERVER_DIR/" 2>/dev/null || true
-                cp -rf "$HOME/AustinNode-main/."* "$SERVER_DIR/" 2>/dev/null || true
-                rm -rf "$HOME/AustinNode-main" "$TEMP_ZIP" 2>/dev/null || true
+            if [ -d "$HOME/AustinServer-main" ]; then
+                cp -rf "$HOME/AustinServer-main/"* "$SERVER_DIR/" 2>/dev/null || true
+                cp -rf "$HOME/AustinServer-main/."* "$SERVER_DIR/" 2>/dev/null || true
+                rm -rf "$HOME/AustinServer-main" "$TEMP_ZIP" 2>/dev/null || true
                 UPDATED=true
             fi
         fi
@@ -125,7 +127,7 @@ else
     if [ -f "$SERVER_DIR/start.sh" ]; then
         bash "$SERVER_DIR/start.sh" --bg
     else
-        nohup node "$SERVER_DIR/panel/server.js" > "$SERVER_DIR/logs/panel.log" 2>&1 &
+        setsid node "$SERVER_DIR/panel/server.js" > "$SERVER_DIR/logs/panel.log" 2>&1 < /dev/null &
     fi
     echo -e "${GREEN}✓ Server panel berhasil dimulai ulang!${NC}"
 fi

@@ -21,6 +21,8 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets
 DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$DIR/panel/server.js" ]; then
     SERVER_DIR="$DIR"
+elif [ -d "$HOME/AustinServer" ]; then
+    SERVER_DIR="$HOME/AustinServer"
 elif [ -d "$HOME/AustinNode" ]; then
     SERVER_DIR="$HOME/AustinNode"
 elif [ -d "$HOME/panel" ]; then
@@ -170,7 +172,7 @@ start_panel() {
         return 1
     fi
 
-    nohup "$NODE_BIN" "$SERVER_JS" > "$PANEL_LOG" 2>&1 &
+    setsid "$NODE_BIN" "$SERVER_JS" > "$PANEL_LOG" 2>&1 < /dev/null &
     PANEL_PID=$!
     sleep 1.2
 
@@ -196,14 +198,24 @@ stop_panel() {
 # -----------------------------------------------------------------------------
 # 3. START ALL, STOP ALL, & STATUS
 # -----------------------------------------------------------------------------
+print_banner() {
+    echo -e "${CYAN}"
+    cat << 'BANNER'
+    _             _   _          ____                             
+   / \  _   _ ___| |_(_)_ __    / ___|  ___ _ ____   _____ _ __ 
+  / _ \| | | / __| __| | '_ \   \___ \ / _ \ '__\ \ / / _ \ '__|
+ / ___ \ |_| \__ \ |_| | | | |   ___) |  __/ |   \ V /  __/ |   
+/_/   \_\__,_|___/\__|_|_| |_|  |____/ \___|_|    \_/ \___|_|   
+BANNER
+    echo -e "${NC}"
+}
+
 start_all() {
     command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock 2>/dev/null || true
 
     echo ""
-    echo -e "${CYAN}┌─────────────────────────────────────────────────────────────┐${NC}"
-    echo -e "${CYAN}│                 🚀 AUSTIN MINI SERVER & VPS                   │${NC}"
-    echo -e "${CYAN}│              Memulai Seluruh Layanan Server...              │${NC}"
-    echo -e "${CYAN}└─────────────────────────────────────────────────────────────┘${NC}"
+    print_banner
+    echo -e "${YELLOW}        Memulai Seluruh Layanan Server...${NC}"
     echo ""
 
     start_vps
@@ -274,24 +286,24 @@ show_logs() {
 }
 
 case "$1" in
-    stop)
+    stop|--stop)
         stop_all
         ;;
-    restart)
+    restart|--restart)
         stop_all
         sleep 1
         start_all
         ;;
-    status)
+    status|--status)
         status_all
         ;;
-    logs|log)
+    logs|log|--logs)
         show_logs
         ;;
-    panel)
+    panel|--panel)
         start_panel
         ;;
-    vps)
+    vps|--vps)
         start_vps
         ;;
     *)
