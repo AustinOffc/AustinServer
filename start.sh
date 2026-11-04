@@ -12,11 +12,30 @@ CYAN='\033[0;36m'
 RED='\033[0;31m'
 NC='\033[0m'
 
+# Simpan LD_PRELOAD asli Termux (libtermux-exec). Tanpa ini, Android 10+ menolak
+# eksekusi binary seperti node dengan error "Permission denied".
+ORIG_LD_PRELOAD="${LD_PRELOAD:-}"
+
 # Inisialisasi Environment Termux
 export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 [ -z "$HOME" ] || [ "$HOME" = "/" ] || [ "$HOME" = "/root" ] && [ -d "/data/data/com.termux/files/home" ] && export HOME="/data/data/com.termux/files/home"
 export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
 [ -d "$PREFIX/lib" ] && export LD_LIBRARY_PATH="$PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+# Pulihkan LD_PRELOAD Termux (dipakai sebelum menjalankan node/binary Termux)
+restore_preload() {
+    if [ -n "$ORIG_LD_PRELOAD" ]; then
+        export LD_PRELOAD="$ORIG_LD_PRELOAD"
+    else
+        local l
+        for l in libtermux-exec-ld-preload.so libtermux-exec.so; do
+            if [ -f "$PREFIX/lib/$l" ]; then
+                export LD_PRELOAD="$PREFIX/lib/$l"
+                break
+            fi
+        done
+    fi
+}
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f "$DIR/panel/server.js" ]; then
@@ -85,27 +104,39 @@ start_vps() {
         mkdir -p "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" 2>/dev/null || true
         chmod 0755 "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" 2>/dev/null || true
 
-        unset LD_PRELOAD
-        export PROOT_NO_SECCOMP=1
-        nohup proot \
-            --link2symlink \
-            -0 \
-            -r "$UBUNTU_DIR" \
-            -b /dev \
-            -b /dev/pts \
-            -b /proc \
-            -b /sys \
-            -b /sdcard \
-            -b /data/data/com.termux/files:/data/data/com.termux/files \
-            -b "$HOME":/root/termux-home \
-            -w /root \
-            /usr/bin/env -i \
-            HOME=/root \
-            HOSTNAME=austin \
-            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-            /usr/sbin/sshd -p 2222 -D -e > "$VPS_LOG" 2>&1 &
-        sleep 1
-        echo -e "${GREEN}✓ VPS OpenSSH aktif di background (Port 2222).${NC}"
+        # Subshell: unset LD_PRELOAD & env proot HANYA berlaku untuk proot,
+        # tidak bocor ke shell utama (agar node tetap bisa dieksekusi).
+        (
+            unset LD_PRELOAD
+            export PROOT_NO_SECCOMP=1
+            nohup proot \
+                --link2symlink \
+                -0 \
+                -r "$UBUNTU_DIR" \
+                -b /dev \
+                -b /dev/pts \
+                -b /proc \
+                -b /sys \
+                -b /sdcard \
+                -b /data/data/com.termux/files:/data/data/com.termux/files \
+                -b "$HOME":/root/termux-home \
+                -w /root \
+                /usr/bin/env -i \
+                HOME=/root \
+                HOSTNAME=austin \
+                PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+                /usr/sbin/sshd -p 2222 -D -e > "$VPS_LOG" 2>&1 &
+        )
+        local i
+        for i in 1 2 3 4 5 6; do
+            sleep 1
+            is_port_active 2222 && break
+        done
+        if is_port_active 2222; then
+            echo -e "${GREEN}✓ VPS OpenSSH aktif di background (Port 2222).${NC}"
+        else
+            echo -e "${RED}✗ VPS OpenSSH belum aktif. Cek log: $VPS_LOG${NC}"
+        fi
     else
         pkill -f "sshd -p 2222" 2>/dev/null || true
         sshd -p 2222 2>/dev/null || true
@@ -172,9 +203,25 @@ start_panel() {
         return 1
     fi
 
-    setsid "$NODE_BIN" "$SERVER_JS" > "$PANEL_LOG" 2>&1 < /dev/null &
+    restore_preload
+    cd "$SERVER_DIR" 2>/dev/null || true
+
+    # Percobaan 1: setsid (jika ada), Percobaan 2: nohup lewat bash
+    PANEL_PID=""
+    if command -v setsid >/dev/null 2>&1; then
+        setsid "$NODE_BIN" "$SERVER_JS" > "$PANEL_LOG" 2>&1 < /dev/null &
+    else
+        nohup "$NODE_BIN" "$SERVER_JS" > "$PANEL_LOG" 2>&1 < /dev/null &
+    fi
     PANEL_PID=$!
-    sleep 1.2
+    sleep 1.5
+
+    if ! kill -0 "$PANEL_PID" 2>/dev/null && grep -qi "permission denied" "$PANEL_LOG" 2>/dev/null; then
+        echo -e "${YELLOW}⚠️ Peluncuran langsung ditolak, mencoba metode cadangan...${NC}"
+        nohup "$PREFIX/bin/bash" -c "exec \"$NODE_BIN\" \"$SERVER_JS\"" > "$PANEL_LOG" 2>&1 < /dev/null &
+        PANEL_PID=$!
+        sleep 1.5
+    fi
 
     if kill -0 "$PANEL_PID" 2>/dev/null; then
         echo -e "${GREEN}✓ Web Panel aktif di background (PID: $PANEL_PID).${NC}"

@@ -36,7 +36,8 @@ echo ""
 
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 chmod +x "$SRC_DIR"/*.sh "$SRC_DIR"/scripts/*.sh 2>/dev/null || true
-[ -d "$SRC_DIR" ] && BASE_DIR="$SRC_DIR" || BASE_DIR="$HOME/AustinServer"
+# Server selalu dipasang ke ~/AustinServer (tetap sama walau zip diekstrak di folder lain)
+BASE_DIR="$HOME/AustinServer"
 UBUNTU_DIR="$HOME/ubuntu-fs"
 
 # -----------------------------------------------------------------------------
@@ -139,11 +140,19 @@ echo -e "${GREEN}✓ Termux siap (Node: $NODE_VER, PM2: $(pm2 -v 2>/dev/null || 
 echo -e "${YELLOW}[3/6] Menyiapkan struktur folder server di $BASE_DIR...${NC}"
 mkdir -p "$BASE_DIR/logs" "$BASE_DIR/panel" "$BASE_DIR/apps" "$BASE_DIR/scripts"
 
+# Jangan timpa password panel yang sudah pernah diganti
+AUTH_BAK=""
+[ -f "$BASE_DIR/panel/auth-config.json" ] && AUTH_BAK="$(cat "$BASE_DIR/panel/auth-config.json")"
+
 [ -d "$SRC_DIR/panel" ] && cp -r "$SRC_DIR/panel/"* "$BASE_DIR/panel/" 2>/dev/null || true
 [ -d "$SRC_DIR/apps" ] && cp -r "$SRC_DIR/apps/"* "$BASE_DIR/apps/" 2>/dev/null || true
 [ -d "$SRC_DIR/scripts" ] && cp -r "$SRC_DIR/scripts/"* "$BASE_DIR/scripts/" 2>/dev/null || true
-chmod +x "$BASE_DIR"/scripts/*.sh 2>/dev/null || true
-[ -f "$SRC_DIR/start.sh" ] && cp "$SRC_DIR/start.sh" "$HOME/start.sh" && cp "$SRC_DIR/start.sh" "$BASE_DIR/start.sh" && chmod +x "$HOME/start.sh" "$BASE_DIR/start.sh"
+[ -n "$AUTH_BAK" ] && echo "$AUTH_BAK" > "$BASE_DIR/panel/auth-config.json"
+for f in update.sh VERSION README.md; do
+    if [ -f "$SRC_DIR/$f" ] && [ "$SRC_DIR" != "$BASE_DIR" ]; then cp "$SRC_DIR/$f" "$BASE_DIR/$f" 2>/dev/null || true; fi
+done
+chmod +x "$BASE_DIR"/*.sh "$BASE_DIR"/scripts/*.sh 2>/dev/null || true
+[ -f "$SRC_DIR/start.sh" ] && cp "$SRC_DIR/start.sh" "$HOME/start.sh" && { [ "$SRC_DIR" = "$BASE_DIR" ] || cp "$SRC_DIR/start.sh" "$BASE_DIR/start.sh"; } && chmod +x "$HOME/start.sh" "$BASE_DIR/start.sh"
 
 # -----------------------------------------------------------------------------
 # 4. INSTALASI DISTRO UBUNTU VPS (PRoot)
@@ -400,13 +409,28 @@ echo -e "${YELLOW}[6/6] Menyiapkan autostart Termux:Boot & Menjalankan Server...
 # Autostart via Termux:Boot (aplikasi Termux:Boot harus terpasang & dibuka sekali)
 BOOT_DIR="$HOME/.termux/boot"
 mkdir -p "$BOOT_DIR"
-cat << 'EOF' > "$BOOT_DIR/start-server.sh"
+rm -f "$BOOT_DIR/start-server.sh" 2>/dev/null || true
+cat << 'EOF' > "$BOOT_DIR/austin-server.sh"
 #!/data/data/com.termux/files/usr/bin/bash
-termux-wake-lock 2>/dev/null || true
-sleep 15
-bash "$HOME/start.sh" >/dev/null 2>&1 &
+# Austin Mini Server — autostart saat HP boot (Termux:Boot)
+export PREFIX="/data/data/com.termux/files/usr"
+export HOME="/data/data/com.termux/files/home"
+export PATH="$PREFIX/bin:$PREFIX/bin/applets:$PATH"
+LOG="$HOME/.termux/boot.log"
+{
+    echo "=== Boot $(date '+%F %T') ==="
+    termux-wake-lock 2>/dev/null || true
+    # Tunggu jaringan siap (maks. 60 detik)
+    for i in $(seq 1 30); do
+        ip route get 1.1.1.1 >/dev/null 2>&1 && break
+        sleep 2
+    done
+    sleep 5
+    bash "$HOME/start.sh"
+    echo "=== Selesai $(date '+%F %T') ==="
+} >> "$LOG" 2>&1
 EOF
-chmod +x "$BOOT_DIR/start-server.sh"
+chmod +x "$BOOT_DIR/austin-server.sh"
 
 echo ""
 echo -e "${GREEN}┌─────────────────────────────────────────────────────────────┐${NC}"
@@ -414,7 +438,7 @@ echo -e "${GREEN}│        ✅ INSTALASI AUSTIN MINI SERVER BERHASIL SELESAI!  
 echo -e "${GREEN}├─────────────────────────────────────────────────────────────┤${NC}"
 echo -e "   • Seluruh paket & dependensi telah berhasil dipasang."
 echo -e "   • Cache & sisa installer telah dibersihkan secara otomatis."
-echo -e "   • Autostart Termux:Boot telah disiapkan."
+echo -e "   • Autostart Termux:Boot telah disiapkan (log: ~/.termux/boot.log)."
 echo -e "${GREEN}└─────────────────────────────────────────────────────────────┘${NC}"
 echo ""
 echo -e "${YELLOW}>> Menjalankan server sekarang...${NC}"
