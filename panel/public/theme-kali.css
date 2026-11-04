@@ -1,0 +1,117 @@
+/* Austin Mini Server — Tema A: Kali Blue
+   Ubah warna aksen cukup lewat --k dan --k-rgb di :root. */
+/* Austin Mini Server — Tema "Kali" (preview)
+   Aksen diatur lewat --k dan --k-rgb */
+:root{
+  --k:#367BF0; --k-rgb:54,123,240; --k-ink:#ffffff;
+  --bg-base:#07080b; --bg-surface:#0d0f13; --bg-surface-elevated:#141820; --bg-card:#0e1014; --bg-input:#06070a;
+  --border-color:rgba(54,123,240,.30); --border-subtle:rgba(54,123,240,.14); --border-focus:var(--k);
+  --text-main:#e6edf3; --text-muted:#8b98a9; --text-dim:#5c6773;
+  --accent-blue:var(--k); --accent-blue-hover:var(--k);
+  --accent-emerald:#3dff7a; --accent-amber:#ffb000; --accent-rose:#ff3b3b; --accent-purple:#b36bff;
+  --font-sans:'JetBrains Mono','Fira Code','DejaVu Sans Mono',ui-monospace,Menlo,Consolas,monospace;
+  --font-mono:'JetBrains Mono','Fira Code','DejaVu Sans Mono',ui-monospace,Menlo,Consolas,monospace;
+  --radius-xs:2px; --radius-sm:2px; --radius-md:2px; --radius-lg:2px; --radius-pill:2px;
+  --shadow-sm:none; --shadow-md:0 0 18px rgba(var(--k-rgb),.10); --shadow-lg:0 0 34px rgba(var(--k-rgb),.22);
+}
+*{border-radius:2px!important}
+.status-dot,.term-status-dot,input[type=checkbox],.xe-tab .dot{border-radius:50%!important}
+body{background:#07080b;font-size:13px;letter-spacing:.01em}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.022) 0 1px,transparent 1px 3px)}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(900px 420px at 8% -12%,rgba(var(--k-rgb),.16),transparent 62%),
+             linear-gradient(rgba(var(--k-rgb),.035) 1px,transparent 1px) 0 0/100% 34px}
+::selection{background:rgba(var(--k-rgb),.45);color:#fff}
+
+/* Header ala prompt Kali */
+header{background:rgba(7,8,11,.96);border-bottom:1px solid rgba(var(--k-rgb),.45)}
+.brand-logo{background:transparent!important;border:1px solid var(--k)!important;box-shadow:0 0 14px rgba(var(--k-rgb),.4)}
+.brand-logo svg{stroke:var(--k)!important}
+.status-badge{background:transparent!important;border:1px solid rgba(61,255,122,.55)!important;color:#3dff7a!important;text-transform:uppercase;letter-spacing:.1em;font-size:9.5px!important;padding:1px 7px!important}
+.status-dot{box-shadow:0 0 8px #3dff7a}
+
+/* Tab: [ nama ] */
+.tabs-nav{background:transparent!important;border:0!important;border-bottom:1px solid rgba(var(--k-rgb),.30)!important;padding:0!important;gap:0!important}
+.tab-btn{border:0!important;border-bottom:2px solid transparent!important;background:transparent!important;color:var(--text-dim)!important;
+  font-size:12px!important;padding:8px 9px!important;gap:3px!important;box-shadow:none!important;font-weight:500!important}
+.tab-btn svg{display:none!important}
+.tab-btn::before{content:"[";opacity:.4}.tab-btn::after{content:"]";opacity:.4}
+.tab-btn:hover{color:var(--text-main)!important}
+.tab-btn.active{color:var(--k)!important;background:rgba(var(--k-rgb),.09)!important;border-bottom-color:var(--k)!important;text-shadow:0 0 10px rgba(var(--k-rgb),.7)}
+.tab-btn.active::before,.tab-btn.active::after{opacity:1}
+
+/* Kartu */
+.card,.log-card,.remote-card,.term-quick-row,.quick-url-box{
+  background:linear-gradient(180deg,rgba(var(--k-rgb),.05),transparent 46%),#0d0f13!important;
+  border:1px solid rgba(var(--k-rgb),.30)!important;box-shadow:0 0 22px rgba(var(--k-rgb),.06)!important}
+.log-card-header,.card-header,.remote-card-header{background:rgba(var(--k-rgb),.08)!important;border-bottom:1px solid rgba(var(--k-rgb),.30)!important}
+.log-card-title svg,.card-title svg{display:none!important}
+.log-card-title span::before,.card-header>.card-title:first-child::before{content:"[*] ";color:var(--k);text-shadow:0 0 8px var(--k)}
+.card-title,.log-card-title span{text-transform:uppercase;letter-spacing:.08em;font-size:11.5px!important;font-weight:700!important}
+.card-value{color:var(--k)!important;text-shadow:0 0 14px rgba(var(--k-rgb),.5)}
+.card-subtext,.spec-label,.core-temp-label{color:var(--text-dim)!important}
+.progress-bar-bg{background:#05060a!important;border:1px solid rgba(var(--k-rgb),.25)!important;height:9px!important}
+.progress-bar-fill{background:repeating-linear-gradient(90deg,var(--k) 0 6px,transparent 6px 8px)!important;box-shadow:0 0 10px rgba(var(--k-rgb),.5)}
+.meta-chip{background:transparent!important;border:1px solid rgba(var(--k-rgb),.3)!important}
+
+/* Tombol */
+.btn{background:transparent!important;border:1px solid rgba(var(--k-rgb),.5)!important;color:var(--text-main)!important;font-weight:500!important;box-shadow:none!important}
+.btn:hover{background:rgba(var(--k-rgb),.16)!important;border-color:var(--k)!important;box-shadow:0 0 12px rgba(var(--k-rgb),.45)!important}
+.btn-primary{background:var(--k)!important;color:var(--k-ink)!important;border-color:var(--k)!important;font-weight:700!important;box-shadow:0 0 14px rgba(var(--k-rgb),.5)!important}
+.btn-danger,.btn-action-red{border-color:rgba(255,59,59,.65)!important;color:#ff6b6b!important}
+.btn-action-amber{border-color:rgba(255,176,0,.6)!important;color:#ffb000!important}
+.btn-action-blue{border-color:rgba(var(--k-rgb),.7)!important;color:var(--k)!important}
+
+/* Input & modal */
+.form-input,.xe-find input[type=text]{background:#05060a!important;border:1px solid rgba(var(--k-rgb),.32)!important;color:var(--text-main)!important}
+.form-input:focus{border-color:var(--k)!important;box-shadow:0 0 0 1px var(--k),0 0 14px rgba(var(--k-rgb),.35)!important}
+.form-label{color:var(--text-muted)!important;text-transform:uppercase;font-size:10.5px!important;letter-spacing:.08em}
+.modal-overlay{background:rgba(2,3,5,.82)!important}
+.modal-box{background:#0b0d11!important;border:1px solid var(--k)!important;box-shadow:0 0 36px rgba(var(--k-rgb),.28)!important}
+.modal-title::before{content:"[#] ";color:var(--k)}
+.toast-container>*{background:#0b0d11!important;border:1px solid rgba(var(--k-rgb),.5)!important;border-left:3px solid var(--k)!important}
+
+/* Terminal & log */
+.terminal-container,.terminal-body,.log-terminal-box,.xl-box,.xt-pre{background:#04050a!important;border-color:rgba(var(--k-rgb),.28)!important}
+.terminal-header{background:rgba(var(--k-rgb),.08)!important;border-bottom:1px solid rgba(var(--k-rgb),.3)!important}
+.terminal-input-bar{background:#06070a!important;border-top:1px solid rgba(var(--k-rgb),.3)!important}
+
+/* Fitur v1.1.0 */
+.xt-badge{background:transparent!important;border:1px solid currentColor;text-transform:uppercase;letter-spacing:.08em;font-size:9.5px!important;padding:1px 7px!important}
+.xt-badge.ok{color:#3dff7a!important}.xt-badge.bad{color:#ff5555!important}.xt-badge.warn{color:#ffb000!important}
+.xt-row{border-top:1px dashed rgba(var(--k-rgb),.2)!important}
+.xt-name::before{content:"▸ ";color:var(--k)}
+.xt-sub{color:var(--text-dim)!important}
+.xt-sel-bar{background:rgba(var(--k-rgb),.1)!important;border-color:var(--k)!important;color:var(--k)!important}
+.xe-win,.xe-top,.xe-tools,.xe-find{background:#07080b!important}
+.xe-tab.active{color:var(--k)!important;border-bottom-color:var(--k)!important;background:rgba(var(--k-rgb),.08)!important}
+.xe-gut{background:#0a0c10!important;border-right-color:rgba(var(--k-rgb),.25)!important}
+
+button,input,select,textarea{font-family:var(--font-mono)!important}
+@media(max-width:460px){
+  .header-actions{gap:5px!important}
+  .header-actions .btn{font-size:0!important;padding:8px 10px!important;gap:0!important;min-width:0}
+  .header-actions .btn svg{width:17px!important;height:17px!important}
+  .header-actions .btn span{display:none!important}
+}
+.btn-term-execute{background:var(--k)!important;color:var(--k-ink)!important;border:1px solid var(--k)!important;font-weight:700!important;box-shadow:0 0 14px rgba(var(--k-rgb),.5)!important}
+.btn-term-header{background:transparent!important;border:1px solid rgba(var(--k-rgb),.5)!important;color:var(--text-main)!important}
+.term-cmd-chip,.term-key-chip{background:transparent!important;border:1px solid rgba(var(--k-rgb),.4)!important;color:var(--k)!important}
+.prompt-tilde{color:var(--k)!important}.prompt-dollar{color:#ff3b3b!important}
+.terminal-title{color:var(--k)!important}
+
+/* Prompt header (elemen HTML asli) */
+.brand-text h1{font-size:13px!important;line-height:1.35!important;font-weight:500!important;letter-spacing:0}
+.k-prompt{display:block;font-size:11px;line-height:1.35;color:var(--k);font-weight:500;white-space:nowrap}
+.k-cmd{display:block;font-size:13px;line-height:1.35;color:var(--text-main);font-weight:700;white-space:nowrap}
+.k-banner{font-size:10.5px;color:var(--text-dim);margin:-4px 0 10px;white-space:pre-wrap}
+.k-banner b{color:var(--k);font-weight:700}
+
+/* Tombol File Manager & tautan bergaya tombol */
+.btn,a.btn{font-family:var(--font-mono)!important}
+.btn-fm-primary{background:var(--k)!important;color:var(--k-ink)!important;border:1px solid var(--k)!important;font-weight:700!important;box-shadow:0 0 14px rgba(var(--k-rgb),.45)!important}
+.btn-fm-emerald{background:transparent!important;color:#3dff7a!important;border:1px solid rgba(61,255,122,.6)!important}
+.btn-fm-emerald:hover{background:rgba(61,255,122,.12)!important;box-shadow:0 0 12px rgba(61,255,122,.35)!important}
+.btn-fm-dark,.btn-fm-icon{background:transparent!important;border:1px solid rgba(var(--k-rgb),.4)!important;color:var(--text-main)!important}
+.btn-fm-dark:hover,.btn-fm-icon:hover{background:rgba(var(--k-rgb),.14)!important;box-shadow:0 0 10px rgba(var(--k-rgb),.35)!important}

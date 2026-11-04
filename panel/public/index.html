@@ -1,0 +1,3977 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Austin Mini Server Dashboard</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#07080B">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Austin Server">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090D16;
+      --bg-surface: #0F1523;
+      --bg-surface-elevated: #161D2E;
+      --bg-card: #121826;
+      --bg-input: #0A0E18;
+      
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-subtle: rgba(255, 255, 255, 0.04);
+      --border-focus: #3B82F6;
+      
+      --text-main: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      
+      --accent-blue: #3B82F6;
+      --accent-blue-hover: #2563EB;
+      --accent-emerald: #10B981;
+      --accent-amber: #F59E0B;
+      --accent-rose: #EF4444;
+      --accent-purple: #8B5CF6;
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      
+      --radius-xs: 4px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-pill: 9999px;
+      
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
+      --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.35);
+      --shadow-lg: 0 12px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+    }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Top Header */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      background: rgba(9, 13, 22, 0.94);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 10px 18px;
+      width: 100%;
+    }
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .brand-logo {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      background: #182235;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .brand-logo svg {
+      width: 18px;
+      height: 18px;
+      stroke: #60A5FA;
+      fill: none;
+      stroke-width: 2;
+    }
+    .brand-text h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brand-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 1px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: var(--radius-pill);
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-emerald);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      line-height: 1.4;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 6px var(--accent-emerald);
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .btn-restart-label-short {
+      display: none;
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 18px 18px 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Segmented Tabs Navigation */
+    .tabs-nav {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 4px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      margin-bottom: 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .tabs-nav::-webkit-scrollbar {
+      display: none;
+    }
+    .tab-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.16s ease;
+      flex: 1 0 auto;
+      min-height: 38px;
+    }
+    .tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .tab-btn.active {
+      color: #FFFFFF;
+      background: var(--bg-surface-elevated);
+      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-sm);
+      font-weight: 600;
+    }
+    .tab-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      flex-shrink: 0;
+    }
+
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+      animation: tabFadeIn 0.2s ease-out;
+    }
+    @keyframes tabFadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+      background: var(--bg-surface-elevated);
+      color: var(--text-main);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      user-select: none;
+      min-height: 36px;
+    }
+    .btn:hover {
+      background: #1F293D;
+      border-color: rgba(255, 255, 255, 0.15);
+      color: #FFFFFF;
+    }
+    .btn:active {
+      transform: scale(0.98);
+    }
+    .btn-primary {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover {
+      background: var(--accent-blue-hover);
+      border-color: var(--accent-blue-hover);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #F87171;
+    }
+    .btn-danger:hover {
+      background: var(--accent-rose);
+      border-color: var(--accent-rose);
+      color: #FFFFFF;
+    }
+    .btn-action-blue {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      color: #60A5FA !important;
+      font-weight: 500;
+      box-shadow: none !important;
+    }
+    .btn-action-blue svg {
+      stroke: #F8FAFC !important;
+    }
+    .btn-action-blue:hover {
+      background: rgba(59, 130, 246, 0.12) !important;
+      border-color: rgba(96, 165, 250, 0.4) !important;
+      color: #93C5FD !important;
+    }
+    .btn-action-red {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      color: #F87171 !important;
+      font-weight: 500;
+      box-shadow: none !important;
+    }
+    .btn-action-red svg {
+      stroke: #F87171 !important;
+    }
+    .btn-action-red:hover {
+      background: rgba(239, 68, 68, 0.12) !important;
+      border-color: rgba(248, 113, 113, 0.4) !important;
+      color: #FCA5A5 !important;
+    }
+    .btn-action-amber {
+      background: rgba(255, 255, 255, 0.03) !important;
+      border: 1px solid rgba(255, 255, 255, 0.12) !important;
+      color: #FBBF24 !important;
+      font-weight: 500;
+      box-shadow: none !important;
+    }
+    .btn-action-amber svg {
+      stroke: #F8FAFC !important;
+    }
+    .btn-action-amber:hover {
+      background: rgba(245, 158, 11, 0.12) !important;
+      border-color: rgba(251, 191, 36, 0.4) !important;
+      color: #FDE68A !important;
+    }
+    /* Quick URL Ribbon */
+    .quick-url-ribbon {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+    }
+    .quick-url-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .quick-url-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #93C5FD;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .quick-url-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+    .quick-url-box code {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #F8FAFC;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .quick-url-box .btn {
+      padding: 4px 9px;
+      font-size: 11px;
+      min-height: 28px;
+      flex-shrink: 0;
+    }
+
+    /* Grid & Cards */
+    .spec-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+    }
+    .spec-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .spec-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .spec-title svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--accent-blue);
+      fill: none;
+      stroke-width: 2;
+    }
+    .spec-badge {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 2px 8px;
+      border-radius: var(--radius-xs);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
+    }
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .spec-item {
+      background: #080D1A;
+      border: 1px solid #141F36;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      transition: border-color 0.15s ease;
+    }
+    .spec-item:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+    .spec-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #64748B;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .spec-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #F1F5F9;
+      font-family: var(--font-mono);
+      word-break: break-word;
+      line-height: 1.35;
+    }
+
+    .grid-cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+    .card-span-2 {
+      grid-column: span 2;
+    }
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: var(--shadow-sm);
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .card-title svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+    .card-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-main);
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    .card-subtext {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 5px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-pill);
+      overflow: hidden;
+      margin-top: auto;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: var(--radius-pill);
+      background: var(--accent-blue);
+      transition: width 0.3s ease;
+    }
+
+    .core-temps-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .core-temp-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.02);
+      padding: 4px 2px;
+      border-radius: var(--radius-xs);
+    }
+    .core-temp-label {
+      font-size: 9.5px;
+      color: var(--text-dim);
+      margin-bottom: 1px;
+    }
+    .core-temp-val {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      color: var(--text-main);
+    }
+
+    /* Remote Services & Control Cards */
+    .remote-ctrl-container {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .remote-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .remote-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .remote-card-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .remote-icon-badge {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .remote-icon-badge.vps { background: rgba(59, 130, 246, 0.15); color: #60A5FA; border: 1px solid rgba(59, 130, 246, 0.25); }
+    .remote-icon-badge.device { background: rgba(139, 92, 246, 0.15); color: #C084FC; border: 1px solid rgba(139, 92, 246, 0.25); }
+    .remote-icon-badge.cloudflare { background: rgba(249, 115, 22, 0.15); color: #FB923C; border: 1px solid rgba(249, 115, 22, 0.25); }
+    .remote-icon-badge svg {
+      width: 17px;
+      height: 17px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+    .remote-card h3 {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #F8FAFC;
+      letter-spacing: -0.2px;
+    }
+    .remote-card-subtitle {
+      font-size: 11px;
+      color: #94A3B8;
+      margin-top: 1px;
+    }
+    .remote-ssh-box {
+      background: #060913;
+      border: 1px solid #161F30;
+      border-radius: 10px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .remote-ssh-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #94A3B8;
+      font-weight: 500;
+    }
+    .badge-pinggy {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      padding: 2px 7px;
+      border-radius: 9999px;
+      background: rgba(59, 130, 246, 0.12);
+      color: #93C5FD;
+      border: 1px solid rgba(59, 130, 246, 0.25);
+      font-weight: 500;
+    }
+    .remote-ssh-cmd-row {
+      display: flex;
+      align-items: center;
+      background: #080D1A;
+      border: 1px solid #1A2438;
+      border-radius: 7px;
+      padding: 4px 6px 4px 9px;
+      gap: 6px;
+      min-height: 35px;
+    }
+    .remote-ssh-cmd-row .btn {
+      padding: 3px 8px;
+      font-size: 11px;
+      border-radius: 5px;
+      min-height: 28px;
+    }
+    .remote-ssh-cmd-row code {
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 11px;
+      color: #F1F5F9;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      line-height: 1.4;
+    }
+    .meta-chips-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .meta-chips-grid {
+      display: grid;
+      gap: 6px;
+      width: 100%;
+    }
+    .meta-chips-grid.cols-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+    .meta-chips-grid.cols-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .meta-chips-grid .meta-chip {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 3px 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #0F172A;
+      border: 1px solid #1E293B;
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 10.5px;
+      color: #94A3B8;
+      font-family: var(--font-mono);
+    }
+    .meta-chip strong {
+      color: #F1F5F9;
+      font-weight: 600;
+    }
+    .meta-chip.success strong { color: #34D399; }
+    .meta-chip.info strong { color: #60A5FA; }
+    .meta-chip.purple strong { color: #C084FC; }
+
+    .remote-actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 6px;
+    }
+    .remote-controls-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr) !important;
+      gap: 8px;
+    }
+    .remote-ctrl-btn {
+      background: #0E1626;
+      border: 1px solid #1E293B;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.2s ease;
+      color: #F8FAFC;
+      min-height: 46px;
+    }
+    .remote-ctrl-btn:hover {
+      background: #162035;
+      border-color: #3B82F6;
+      transform: translateY(-1px);
+    }
+    .remote-ctrl-btn:active {
+      transform: translateY(0);
+    }
+    .remote-ctrl-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .remote-ctrl-icon svg {
+      width: 15px;
+      height: 15px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+    .remote-ctrl-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .remote-ctrl-name {
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #F8FAFC;
+    }
+    .remote-ctrl-desc {
+      font-size: 10px;
+      color: #94A3B8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* File Manager — Modern Clean Redesign */
+    .fm-container {
+      background: #080d1a;
+      border: 1px solid #141f36;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .fm-toolbar {
+      padding: 12px 18px;
+      background: #0b1324;
+      border-bottom: 1px solid #141f36;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .fm-path-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      max-width: 480px;
+      min-width: 180px;
+    }
+    .fm-path-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: #94a3b8;
+      background: #060a14;
+      padding: 8px 14px;
+      border-radius: 8px;
+      border: 1px solid #17243d;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .fm-path-segment {
+      color: #60a5fa;
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .fm-path-segment:hover {
+      background: rgba(59, 130, 246, 0.18);
+      color: #93c5fd;
+    }
+    .fm-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-fm-primary {
+      background: #2563eb;
+      color: #ffffff;
+      border: 1px solid #3b82f6;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+    }
+    .btn-fm-primary:hover {
+      background: #1d4ed8;
+      border-color: #60a5fa;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-fm-emerald {
+      background: #059669;
+      color: #ffffff;
+      border: 1px solid #10b981;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+    }
+    .btn-fm-emerald:hover {
+      background: #047857;
+      border-color: #34d399;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.45);
+      transform: translateY(-1px);
+    }
+    .btn-fm-dark {
+      background: #0c1527;
+      color: #cbd5e1;
+      border: 1px solid #1a273f;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-fm-dark:hover {
+      background: #131f38;
+      border-color: #334155;
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+    .btn-fm-icon {
+      background: #0c1527;
+      color: #94a3b8;
+      border: 1px solid #1a273f;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-fm-icon:hover {
+      background: #131f38;
+      border-color: #334155;
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .quick-locations {
+      padding: 10px 18px;
+      background: #070b16;
+      border-bottom: 1px solid #131c30;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      white-space: nowrap;
+      align-items: center;
+    }
+    .quick-loc-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: #64748b;
+      text-transform: uppercase;
+      margin-right: 4px;
+      user-select: none;
+    }
+    .quick-loc-btn {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: #0d1527;
+      color: #94a3b8;
+      border: 1px solid #1a273f;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .quick-loc-btn:hover {
+      background: #15223c;
+      border-color: #38bdf8;
+      color: #f8fafc;
+      transform: translateY(-1px);
+    }
+
+    .fm-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      background: #080d1a;
+      scrollbar-width: thin;
+      scrollbar-color: #1e293b #080d1a;
+    }
+    .fm-table-wrap::-webkit-scrollbar {
+      height: 4px;
+    }
+    .fm-table-wrap::-webkit-scrollbar-track {
+      background: #080d1a;
+    }
+    .fm-table-wrap::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    .fm-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      text-align: left;
+    }
+    .fm-table th {
+      background: #080d1a;
+      padding: 12px 18px;
+      font-weight: 600;
+      color: #64748b;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid #141f36;
+      user-select: none;
+    }
+    .fm-table td {
+      padding: 12px 18px;
+      border-bottom: 1px solid #0f172a;
+      color: #cbd5e1;
+      vertical-align: middle;
+    }
+    .fm-table tr {
+      transition: background 0.15s ease;
+    }
+    .fm-table tbody tr:hover td {
+      background: #0e172a;
+    }
+    .file-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      font-weight: 500;
+      color: #f1f5f9;
+    }
+    .file-name-cell:hover {
+      color: #60a5fa;
+    }
+    .file-icon {
+      width: 19px;
+      height: 19px;
+      flex-shrink: 0;
+      fill: none;
+      stroke-width: 1.8;
+    }
+    .file-icon.dir { stroke: #fbbf24; fill: none; }
+    .file-icon.file { stroke: #94a3b8; fill: none; }
+
+    .fm-action-icon {
+      background: transparent;
+      border: none;
+      color: #64748b;
+      padding: 6px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .fm-action-icon:hover {
+      color: #cbd5e1;
+      background: rgba(255, 255, 255, 0.08);
+      transform: scale(1.1);
+    }
+    .fm-action-icon.fm-delete-icon:hover {
+      color: #f87171;
+      background: rgba(239, 68, 68, 0.15);
+    }
+    .fm-action-icon.fm-zip-icon:hover {
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.15);
+    }
+
+    /* Web Terminal — Sleek Modern Console Style */
+    .terminal-container {
+      background: #060913;
+      border: 1px solid #1A2333;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 145px);
+      min-height: 420px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+    .terminal-header {
+      padding: 10px 16px;
+      background: #0A0F1D;
+      border-bottom: 1px solid #161F30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .terminal-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #F8FAFC;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .term-prompt-icon {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: #F43F5E;
+      display: inline-block;
+      letter-spacing: -0.5px;
+    }
+    .term-badge-cwd {
+      background: #151D2C;
+      color: #94A3B8;
+      border: 1px solid #243046;
+      border-radius: 6px;
+      padding: 1.5px 8px;
+      font-size: 11.5px;
+      font-family: var(--font-mono);
+      font-weight: 500;
+    }
+    .terminal-header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .term-status-badge {
+      background: rgba(16, 185, 129, 0.12);
+      color: #10B981;
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      border-radius: 9999px;
+      padding: 4px 12px;
+      font-size: 11.5px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.2px;
+      font-family: var(--font-sans);
+    }
+    .term-status-dot {
+      width: 6.5px;
+      height: 6.5px;
+      background: #10B981;
+      border-radius: 50%;
+      display: inline-block;
+      box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+    }
+    .term-status-badge.running {
+      background: rgba(245, 158, 11, 0.12);
+      color: #F59E0B;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+    .term-status-badge.running .term-status-dot {
+      background: #F59E0B;
+      box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+      animation: blink-dot 1s infinite alternate;
+    }
+    .btn-term-header {
+      background: #151D2C;
+      border: 1px solid #243046;
+      color: #CBD5E1;
+      border-radius: 8px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      font-family: var(--font-sans);
+    }
+    .btn-term-header:hover {
+      background: #1E293B;
+      color: #FFFFFF;
+      border-color: #3B82F6;
+    }
+    .btn-term-header.btn-term-danger {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #F87171;
+    }
+    .btn-term-header.btn-term-danger:hover {
+      background: #EF4444;
+      color: #FFFFFF;
+      border-color: #EF4444;
+    }
+    .terminal-body {
+      flex: 1;
+      padding: 16px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12.5px;
+      color: #E2E8F0;
+      background: #040711;
+      overflow-y: auto;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .terminal-input-bar {
+      padding: 10px 14px;
+      background: #080D1A;
+      border-top: 1px solid #161F30;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .terminal-prompt-prefix {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      font-weight: 600;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .prompt-tilde {
+      color: #EC4899;
+      font-weight: 600;
+    }
+    .prompt-dollar {
+      color: #F43F5E;
+      font-weight: 700;
+    }
+    .terminal-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #F8FAFC;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+    }
+    .terminal-input::placeholder {
+      color: #475569;
+    }
+    .terminal-input-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .btn-term-execute {
+      background: #2563EB;
+      border: 1px solid #3B82F6;
+      color: #FFFFFF;
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+      transition: all 0.2s ease;
+      font-family: var(--font-sans);
+    }
+    .btn-term-execute:hover {
+      background: #1D4ED8;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.5);
+      transform: translateY(-1px);
+    }
+    .btn-term-execute:active {
+      transform: translateY(0);
+    }
+    .term-running-bar {
+      padding: 8px 14px;
+      background: rgba(239, 68, 68, 0.12);
+      border-top: 1px solid rgba(239, 68, 68, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #FCA5A5;
+      animation: pulse-bg 2s infinite ease-in-out;
+    }
+    .term-running-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .spinner-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #EF4444;
+      box-shadow: 0 0 8px #EF4444;
+      animation: blink-dot 1s infinite alternate;
+      flex-shrink: 0;
+    }
+    @keyframes blink-dot {
+      0% { opacity: 0.3; transform: scale(0.8); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
+    @keyframes pulse-bg {
+      0%, 100% { background: rgba(239, 68, 68, 0.12); }
+      50% { background: rgba(239, 68, 68, 0.22); }
+    }
+
+    /* Terminal Quick Action Toolbar & Virtual Keys */
+    .term-quick-bar {
+      padding: 8px 12px;
+      background: #090E1B;
+      border-top: 1px solid #161F30;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .term-quick-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+    }
+    .term-quick-row::-webkit-scrollbar {
+      display: none;
+    }
+    .term-quick-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #64748B;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      padding-right: 2px;
+      user-select: none;
+    }
+    .term-cmd-chip {
+      background: #111827;
+      border: 1px solid #1F2937;
+      color: #E2E8F0;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+    .term-cmd-chip:hover {
+      background: #1F2937;
+      border-color: #3B82F6;
+      color: #FFFFFF;
+      transform: translateY(-1px);
+    }
+    .term-cmd-chip:active {
+      transform: translateY(0);
+    }
+    .term-cmd-chip.primary {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.35);
+      color: #93C5FD;
+    }
+    .term-cmd-chip.primary:hover {
+      background: #2563EB;
+      color: #FFFFFF;
+      border-color: #3B82F6;
+    }
+    .term-cmd-chip.info {
+      background: rgba(14, 165, 233, 0.15);
+      border-color: rgba(14, 165, 233, 0.35);
+      color: #7DD3FC;
+    }
+    .term-cmd-chip.info:hover {
+      background: #0284C7;
+      color: #FFFFFF;
+    }
+    .term-cmd-chip.success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #6EE7B7;
+    }
+    .term-cmd-chip.success:hover {
+      background: #059669;
+      color: #FFFFFF;
+    }
+    .term-cmd-chip.warning {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.35);
+      color: #FCD34D;
+    }
+    .term-cmd-chip.warning:hover {
+      background: #D97706;
+      color: #FFFFFF;
+    }
+    .term-key-chip {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #CBD5E1;
+      border-radius: 5px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      transition: all 0.12s ease;
+      user-select: none;
+    }
+    .term-key-chip:hover {
+      background: #334155;
+      color: #FFFFFF;
+      border-color: #64748B;
+    }
+    .term-key-chip:active {
+      transform: translateY(1px);
+      box-shadow: none;
+    }
+    .term-key-chip.danger {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #FCA5A5;
+    }
+    .term-key-chip.danger:hover {
+      background: #DC2626;
+      color: #FFFFFF;
+      border-color: #EF4444;
+    }
+    .term-key-chip.key-char {
+      min-width: 26px;
+      padding: 3px 6px;
+    }
+
+    /* Logs & Process Manager */
+    .log-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .log-card-header {
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .log-card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .log-terminal-box {
+      background: #060911;
+      padding: 14px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: #94A3B8;
+      height: 340px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.45;
+    }
+
+    /* Modals & Overlays */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal-overlay.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--text-main);
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .form-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 9px 12px;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .form-input:focus {
+      border-color: var(--border-focus);
+    }
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .concept-confirm-box {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px 24px;
+      width: 100%;
+      max-width: min(440px, 92vw);
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      animation: modalPop 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalPop {
+      from { transform: scale(0.94); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .concept-icon-wrap {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+      color: #FACC15;
+    }
+    .concept-icon-wrap svg {
+      width: 48px;
+      height: 48px;
+    }
+    .concept-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+    .concept-desc {
+      font-size: 13.5px;
+      color: #CBD5E1;
+      line-height: 1.5;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+    .concept-warning {
+      font-size: 12px;
+      color: #F87171;
+      margin-bottom: 20px;
+      font-weight: 500;
+    }
+    .concept-btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+    }
+    .concept-btn-action {
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: #FFFFFF;
+      background: var(--accent-rose);
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      min-height: 40px;
+      flex: 1;
+      min-width: 120px;
+    }
+    .concept-btn-action:hover {
+      filter: brightness(1.1);
+    }
+    .concept-btn-cancel {
+      padding: 10px 20px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      font-weight: 500;
+      color: #FFFFFF;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-color);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      min-height: 40px;
+      flex: 1;
+      min-width: 90px;
+    }
+    .concept-btn-cancel:hover {
+      background: #1F293D;
+    }
+
+    /* Toast Container */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-color);
+      border-left: 4px solid var(--accent-blue);
+      border-radius: var(--radius-sm);
+      padding: 10px 16px;
+      font-size: 13px;
+      color: #F8FAFC;
+      box-shadow: var(--shadow-md);
+      backdrop-filter: blur(8px);
+      pointer-events: auto;
+      transition: opacity 0.3s ease;
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    @media (max-width: 1024px) {
+      .header-actions .btn-restart-label-long { display: none; }
+      .header-actions .btn-restart-label-short { display: inline; }
+      .header-actions .btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 8px 12px;
+      }
+      main {
+        padding: 12px 10px 28px;
+      }
+      .grid-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .card-span-2 {
+        grid-column: span 1;
+      }
+      .spec-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+      .remote-ctrl-container {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .header-container {
+        gap: 6px;
+        padding: 0 10px;
+      }
+      .brand {
+        gap: 7px;
+        flex-shrink: 0;
+        min-width: 0;
+      }
+      .brand-logo {
+        width: 28px;
+        height: 28px;
+      }
+      .brand-logo svg {
+        width: 15px;
+        height: 15px;
+      }
+      .brand-text h1 {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .status-badge {
+        font-size: 10px;
+        padding: 1px 5px;
+        gap: 3px;
+      }
+      .header-actions {
+        gap: 4px;
+      }
+      .header-actions .btn {
+        padding: 4px 6px;
+        font-size: 10.5px;
+        min-height: 28px;
+        gap: 3px;
+      }
+      .header-actions .btn svg {
+        width: 12px;
+        height: 12px;
+      }
+      .header-actions .btn-restart-label-long { display: none; }
+      .header-actions .btn-restart-label-short { display: inline; }
+
+      .tabs-nav {
+        gap: 3px;
+        padding: 3px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+      }
+      .tab-btn {
+        padding: 6px 4px;
+        font-size: 11px;
+        gap: 4px;
+        min-height: 35px;
+        flex: 1 0 auto;
+        min-width: 0;
+        padding: 6px 10px;
+      }
+      .tab-btn svg {
+        width: 13px;
+        height: 13px;
+      }
+
+      .quick-url-ribbon {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 8px !important;
+        padding: 8px 10px !important;
+      }
+      .quick-url-item {
+        width: 100%;
+        min-width: 0;
+        gap: 6px;
+      }
+      .quick-url-label {
+        font-size: 10px;
+      }
+      .quick-url-box code {
+        font-size: 11px;
+      }
+
+      .grid-cards {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      .card {
+        padding: 12px 14px;
+      }
+      .card-value {
+        font-size: 20px;
+      }
+
+      .core-temps-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+      .core-temp-item {
+        padding: 6px 4px;
+      }
+      .core-temp-label {
+        font-size: 9px;
+      }
+      .core-temp-val {
+        font-size: 11.5px;
+      }
+
+      .spec-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+      .spec-item {
+        padding: 8px 10px;
+      }
+      .spec-label {
+        font-size: 9.5px;
+      }
+      .spec-value {
+        font-size: 12px;
+      }
+
+      .remote-controls-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px;
+      }
+      .remote-ctrl-btn {
+        padding: 6px 8px;
+        min-height: 40px;
+        gap: 7px;
+      }
+      .remote-ctrl-name {
+        font-size: 11px;
+      }
+      .remote-ctrl-desc {
+        font-size: 9px;
+      }
+      .remote-ssh-cmd-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .remote-ssh-cmd-row code {
+        max-width: 100%;
+      }
+      .remote-ssh-cmd-row > div {
+        width: 100%;
+        display: flex;
+        gap: 6px;
+      }
+      .remote-actions-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+        width: 100%;
+      }
+      .remote-actions-bar .btn {
+        flex: 1;
+        min-height: 38px;
+        justify-content: center;
+        padding: 8px 12px;
+        font-size: 12px;
+      }
+      .meta-chips-grid .meta-chip {
+        font-size: 10px;
+        padding: 3px 4px;
+        gap: 3px;
+      }
+
+      .fm-toolbar {
+        padding: 8px 10px;
+        gap: 8px;
+      }
+      .fm-path-row {
+        width: 100%;
+        max-width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .fm-path-bar {
+        flex: 1;
+        max-width: 100%;
+        width: auto;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+      .fm-actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+      }
+      .fm-actions button {
+        width: 100%;
+        justify-content: center;
+        padding: 7px 8px;
+        font-size: 11.5px;
+      }
+      .fm-table-wrap {
+        border-radius: 0 0 10px 10px;
+      }
+      .fm-table {
+        min-width: 420px;
+      }
+      .fm-table th, .fm-table td {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+      .fm-action-icon {
+        padding: 5px;
+        min-width: 28px;
+        min-height: 28px;
+      }
+
+      .terminal-container {
+        height: calc(100vh - 180px);
+        min-height: 380px;
+      }
+      .terminal-body {
+        padding: 10px 12px;
+        font-size: 11.5px;
+      }
+      .terminal-input-bar {
+        padding: 8px 10px;
+        gap: 6px;
+      }
+      .terminal-input {
+        font-size: 12px;
+      }
+
+      .log-terminal-box {
+        padding: 10px 12px;
+        font-size: 11px;
+        line-height: 1.5;
+        height: 280px;
+      }
+
+      .modal-box, .concept-confirm-box {
+        width: 95vw;
+        max-width: 380px;
+        padding: 18px 14px;
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="/theme-kali.css">
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+        </div>
+        <div class="brand-text">
+          <h1><span class="k-prompt">┌──(austin㉿server)-[~]</span><span class="k-cmd">└─$ austin-server</span></h1>
+          <div class="brand-badges">
+            <span class="status-badge"><span class="status-dot"></span> Online</span>
+          </div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm" id="btn-account-settings" onclick="openAccountSettings()" title="Pengaturan Akun Admin">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span class="btn-restart-label-long">Pengaturan Akun</span>
+          <span class="btn-restart-label-short">Akun</span>
+        </button>
+        <button class="btn btn-sm" id="btn-restart-panel" onclick="doRestartPanel()" title="Restart Server Panel">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          <span class="btn-restart-label-long">Restart Panel</span>
+          <span class="btn-restart-label-short">Restart</span>
+        </button>
+        <button class="btn btn-sm" id="btn-logout" onclick="doLogout()">
+          <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+          Keluar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main>
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('tab-monitoring')">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+        Monitoring
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-files')">
+        <svg viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+        File Manager
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-terminal')">
+        <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+        Terminal
+      </button>
+      <button class="tab-btn" onclick="switchTab('tab-services')">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+        Logs &amp; PM2
+      </button>
+    </nav>
+
+    <!-- 1. TAB MONITORING -->
+    <section id="tab-monitoring" class="tab-content active">
+      <!-- Quick URL Ribbon (Public & Local Web Access) -->
+      <div class="quick-url-ribbon" id="quick-url-ribbon">
+        <div class="quick-url-item primary">
+          <span class="quick-url-label">🌐 Web Publik:</span>
+          <div class="quick-url-box">
+            <code id="ribbon-public-url">Menghubungkan tunnel...</code>
+            <button class="btn btn-primary btn-sm" onclick="copyRibbonPublicUrl()">Salin</button>
+            <a class="btn btn-sm" id="ribbon-btn-visit" href="#" target="_blank" rel="noopener" style="padding: 3px 8px; font-size: 11px; text-decoration: none; color: #60A5FA; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); display: none;">Kunjungi ↗</a>
+          </div>
+        </div>
+        <div class="quick-url-item">
+          <span class="quick-url-label" style="color: var(--text-muted);">🏠 Web Lokal:</span>
+          <div class="quick-url-box">
+            <code id="ribbon-local-url">http://127.0.0.1:8080</code>
+            <button class="btn btn-sm" onclick="copyRibbonLocalUrl()">Salin</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spesifikasi Server -->
+      <div class="spec-card">
+        <div class="spec-header">
+          <div class="spec-title">
+            <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            <span>Spesifikasi Server</span>
+          </div>
+          <span class="spec-badge">Austin Mini Server</span>
+        </div>
+        <div class="spec-grid">
+          <div class="spec-item">
+            <span class="spec-label">CPU</span>
+            <span class="spec-value" id="spec-cpu">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">RAM</span>
+            <span class="spec-value" id="spec-ram">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">DISK LOKAL</span>
+            <span class="spec-value" id="spec-disk">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">STATUS SISTEM</span>
+            <span class="spec-value" id="spec-status" style="color: var(--accent-emerald);">Online 24/7 (Stabil)</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">OS</span>
+            <span class="spec-value" id="spec-os">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">ARSITEKTUR</span>
+            <span class="spec-value" id="spec-arch">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">NODE.JS</span>
+            <span class="spec-value" id="spec-runtime">Memuat...</span>
+          </div>
+          <div class="spec-item">
+            <span class="spec-label">SUHU SERVER</span>
+            <span class="spec-value" id="spec-thermal" style="color: var(--accent-emerald);">Memuat...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resource Grid -->
+      <div class="grid-cards">
+        <!-- Card CPU -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+              CPU
+            </span>
+            <span id="cpu-percent" class="card-title">0%</span>
+          </div>
+          <div class="card-value" id="cpu-usage">0%</div>
+          <div class="card-subtext" id="cpu-sub">4 Cores • Load: -</div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="cpu-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Card RAM -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2"/><path d="M15 20v2"/><path d="M2 15h2"/><path d="M2 9h2"/><path d="M20 15h2"/><path d="M20 9h2"/><path d="M9 2v2"/><path d="M9 20v2"/></svg>
+              RAM
+            </span>
+            <span id="ram-percent" class="card-title">0%</span>
+          </div>
+          <div class="card-value" id="ram-used">0 MB</div>
+          <div class="card-subtext" id="ram-total">Total: 0 MB</div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="ram-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Card Penyimpanan Disk -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="12" x2="2" y2="12"></line><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path><line x1="6" y1="16" x2="6.01" y2="16"></line><line x1="10" y1="16" x2="10.01" y2="16"></line></svg>
+              Penyimpanan
+            </span>
+            <span id="disk-percent" class="card-title">0%</span>
+          </div>
+          <div class="card-value" id="disk-free">0 GB Bebas</div>
+          <div class="card-subtext" id="disk-total">Total: 0 GB</div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="disk-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Card Uptime -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Runtime
+            </span>
+          </div>
+          <div class="card-value" id="val-uptime">00:00:00</div>
+          <div class="card-subtext" id="val-panel-uptime">Panel: 0m</div>
+        </div>
+
+        <!-- Card Baterai -->
+        <div class="card card-span-2" id="card-battery">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><rect width="16" height="10" x="2" y="7" rx="2" ry="2"/><line x1="22" y1="11" x2="22" y2="13"/></svg>
+              Baterai
+            </span>
+            <span id="battery-status-badge" class="card-title" style="color: var(--accent-emerald); font-weight: 600;">Optimal</span>
+          </div>
+          <div class="card-value" style="display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
+            <span id="val-battery">-</span>
+            <span id="val-battery-watts" style="font-size: 14px; font-weight: 600; font-family: var(--font-mono); color: #60A5FA;">-</span>
+          </div>
+          <div class="card-subtext" id="val-battery-sub">Memuat status daya...</div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="battery-bar" style="width: 100%; background: linear-gradient(90deg, #10B981, #3B82F6);"></div>
+          </div>
+          <div class="core-temps-grid">
+            <div class="core-temp-item">
+              <span class="core-temp-label">DAYA (WATT)</span>
+              <span class="core-temp-val" id="bat-watt-val" style="color: var(--accent-emerald);">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">TEGANGAN</span>
+              <span class="core-temp-val" id="bat-volt-val">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">ARUS</span>
+              <span class="core-temp-val" id="bat-current-val">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">SUHU BATERAI</span>
+              <span class="core-temp-val" id="bat-temp-val">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Suhu Server -->
+        <div class="card card-span-2" id="card-thermal">
+          <div class="card-header">
+            <span class="card-title">
+              <svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+              Suhu Server
+            </span>
+            <span id="thermal-badge" class="card-title" style="color: var(--accent-emerald); font-weight: 600;">Optimal</span>
+          </div>
+          <div class="card-value" id="val-temp-cpu" style="display: flex; align-items: baseline; gap: 6px;">
+            <span>-</span>
+            <span style="font-size: 13px; font-weight: 500; color: var(--text-dim); text-transform: uppercase;">SoC</span>
+          </div>
+          <div class="card-subtext" id="val-temp-sub">Memuat sensor...</div>
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="temp-bar" style="width: 40%; background: linear-gradient(90deg, var(--accent-emerald), var(--accent-blue));"></div>
+          </div>
+          <div class="core-temps-grid" id="core-temps-container">
+            <div class="core-temp-item">
+              <span class="core-temp-label">CPU 1</span>
+              <span class="core-temp-val" id="core-temp-1">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">CPU 2</span>
+              <span class="core-temp-val" id="core-temp-2">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">CPU 3</span>
+              <span class="core-temp-val" id="core-temp-3">-</span>
+            </div>
+            <div class="core-temp-item">
+              <span class="core-temp-label">CPU 4</span>
+              <span class="core-temp-val" id="core-temp-4">-</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pusat Akses Online & Kontrol Jarak Jauh -->
+      <!-- Pusat Akses Online & Kontrol Jarak Jauh -->
+      <div class="remote-ctrl-container">
+        <!-- Card 1: VPS Ubuntu SSH Remote -->
+        <div class="remote-card">
+          <div class="remote-card-header">
+            <div class="remote-card-title">
+              <div class="remote-icon-badge vps">
+                <svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><polyline points="7 8 10 11 7 14"/><line x1="12" y1="14" x2="16" y2="14"/></svg>
+              </div>
+              <div>
+                <h3>VPS Ubuntu SSH</h3>
+                <p class="remote-card-subtitle">User: <strong>ubuntu / root</strong> • Port: <strong>2222</strong></p>
+              </div>
+            </div>
+            <div id="vps-live-badge" class="status-badge">
+              <span class="status-dot"></span> Aktif
+            </div>
+          </div>
+
+          <div class="remote-ssh-box">
+            <div class="remote-ssh-label">
+              <span>Akses SSH Publik</span>
+              <span class="badge-pinggy" id="vps-tunnel-badge">Public Tunnel</span>
+            </div>
+            <div class="remote-ssh-cmd-row">
+              <code id="vps-ssh-command">Menghubungkan tunnel remote SSH...</code>
+              <button class="btn btn-primary btn-sm" id="btn-copy-ssh" onclick="copySshCommand()" title="Salin Perintah SSH Publik">
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span>Salin</span>
+              </button>
+            </div>
+            
+            <div class="remote-ssh-label" style="margin-top: 4px;">
+              <span>Akses SSH Lokal (Wi-Fi)</span>
+            </div>
+            <div class="remote-ssh-cmd-row">
+              <code id="vps-local-ssh-code">ssh root@127.0.0.1 -p 2222</code>
+              <button class="btn btn-sm" id="btn-copy-local-ssh" onclick="copyLocalSshCommand()" title="Salin Perintah SSH Lokal">
+                <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                <span>Salin</span>
+              </button>
+            </div>
+
+            <div class="meta-chips-grid cols-2" style="margin-top: 2px;">
+              <span class="meta-chip">🔑 Password: <strong style="color:#60A5FA;">ubuntu123</strong></span>
+              <span class="meta-chip">🔌 Port: <strong>2222</strong></span>
+            </div>
+          </div>
+
+          <div class="remote-actions-bar">
+            <button class="btn btn-sm" id="btn-vps-start" onclick="doVpsAction('start')" style="background: rgba(16, 185, 129, 0.15); color: #34D399; border-color: rgba(16, 185, 129, 0.3); display: none;">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span>Mulai VPS</span>
+            </button>
+            <button class="btn btn-sm" id="btn-vps-stop" onclick="confirmVpsStop()" style="background: rgba(239, 68, 68, 0.12); color: #F87171; border-color: rgba(239, 68, 68, 0.3);">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
+              <span>Hentikan VPS</span>
+            </button>
+            <button class="btn btn-sm" id="btn-vps-restart" onclick="doVpsAction('restart')">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              <span>Restart VPS</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Card 2: Kontrol Sistem & Operasional -->
+        <div class="remote-card">
+          <div class="remote-card-header">
+            <div class="remote-card-title">
+              <div class="remote-icon-badge device">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              </div>
+              <div>
+                <h3>Kontrol Sistem</h3>
+                <p class="remote-card-subtitle">Layanan Server &amp; Perangkat</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="remote-ssh-box">
+            <div class="remote-ssh-label">
+              <span>Status Sistem</span>
+              <span class="badge-pinggy" style="background: rgba(16, 185, 129, 0.15); color: #34D399; border-color: rgba(16, 185, 129, 0.3);">Online 24/7</span>
+            </div>
+            <div class="meta-chips-grid cols-3">
+              <span class="meta-chip info">🌐 Web: <strong>8080</strong></span>
+              <span class="meta-chip purple">🖥 SSH: <strong>2222</strong></span>
+              <span class="meta-chip success">⚡ CPU: <strong>Aktif</strong></span>
+            </div>
+          </div>
+
+          <div class="remote-controls-grid">
+            <button class="remote-ctrl-btn" onclick="doDeviceAction('wakelock')" title="Kunci CPU agar service tidak sleep di background">
+              <div class="remote-ctrl-icon" style="background: rgba(16, 185, 129, 0.15); color: #34D399;">
+                <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
+              <div class="remote-ctrl-text">
+                <span class="remote-ctrl-name">Wake-Lock</span>
+                <span class="remote-ctrl-desc">Kunci CPU Aktif</span>
+              </div>
+            </button>
+
+            <button class="remote-ctrl-btn" onclick="confirmReboot()" title="Restart smartphone">
+              <div class="remote-ctrl-icon" style="background: rgba(239, 68, 68, 0.15); color: #F87171;">
+                <svg viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+              </div>
+              <div class="remote-ctrl-text">
+                <span class="remote-ctrl-name">Reboot HP</span>
+                <span class="remote-ctrl-desc">Restart Ponsel</span>
+              </div>
+            </button>
+
+            <button class="remote-ctrl-btn" onclick="doRestartPanel()" title="Restart service panel">
+              <div class="remote-ctrl-icon" style="background: rgba(139, 92, 246, 0.15); color: #A78BFA;">
+                <svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+              </div>
+              <div class="remote-ctrl-text">
+                <span class="remote-ctrl-name">Restart Panel</span>
+                <span class="remote-ctrl-desc">Restart Layanan</span>
+              </div>
+            </button>
+
+            <button class="remote-ctrl-btn" onclick="switchTab('tab-terminal')" title="Buka terminal command line">
+              <div class="remote-ctrl-icon" style="background: rgba(59, 130, 246, 0.15); color: #60A5FA;">
+                <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+              </div>
+              <div class="remote-ctrl-text">
+                <span class="remote-ctrl-name">Terminal Web</span>
+                <span class="remote-ctrl-desc">Akses CLI</span>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. TAB FILE MANAGER -->
+    <section id="tab-files" class="tab-content">
+      <div class="fm-container">
+        <!-- Toolbar -->
+        <div class="fm-toolbar">
+          <div class="fm-path-row">
+            <div class="fm-path-bar" id="fm-breadcrumbs">
+              <span class="fm-path-segment" onclick="loadFiles('/')">root</span>
+            </div>
+            <button class="btn-fm-icon" onclick="loadFiles()" title="Segarkan File">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            </button>
+          </div>
+          <div class="fm-actions">
+            <input type="file" id="fm-file-input" style="display: none" multiple onchange="handleFileUpload(event)">
+            <input type="file" id="fm-folder-input" style="display: none" webkitdirectory directory multiple onchange="handleFileUpload(event)">
+            <input type="file" id="fm-zip-input" style="display: none" accept=".zip" onchange="handleZipUpload(event)">
+            
+            <button class="btn-fm-primary" onclick="document.getElementById('fm-file-input').click()" title="Unggah File">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>Upload File</span>
+            </button>
+            <button class="btn-fm-emerald" onclick="document.getElementById('fm-folder-input').click()" title="Unggah Folder">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+              <span>Upload Folder</span>
+            </button>
+            <button class="btn-fm-dark" onclick="openMkdirModal()" title="Buat Folder Baru">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/><line x1="12" y1="10" x2="12" y2="16"/><line x1="9" y1="13" x2="15" y2="13"/></svg>
+              <span>Folder Baru</span>
+            </button>
+            <button class="btn-fm-dark" onclick="openCreateFileModal()" title="Buat File Baru">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+              <span>File Baru</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Locations -->
+        <div class="quick-locations">
+          <span class="quick-loc-label">PINTAS:</span>
+          <button class="quick-loc-btn" onclick="navigateTo(defaultHomeDir)">🏠 Home</button>
+          <button class="quick-loc-btn" onclick="navigateTo('/sdcard')">📱 Storage</button>
+          <button class="quick-loc-btn" onclick="navigateTo('/sdcard/Download')">📥 Downloads</button>
+          <button class="quick-loc-btn" onclick="navigateTo(defaultServerDir)">⚙️ Server</button>
+        </div>
+
+        <!-- Table -->
+        <div class="fm-table-wrap">
+          <table class="fm-table">
+            <thead>
+              <tr>
+                <th style="width: 48%;">NAMA</th>
+                <th style="width: 14%;">UKURAN</th>
+                <th style="width: 24%;">DIMODIFIKASI</th>
+                <th style="width: 14%; text-align: right;">AKSI</th>
+              </tr>
+            </thead>
+            <tbody id="fm-tbody">
+              <tr>
+                <td colspan="4" style="text-align:center; padding: 28px; color: var(--text-muted);">Memuat file...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. TAB TERMINAL -->
+    <section id="tab-terminal" class="tab-content">
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <div class="terminal-title">
+            <span class="term-prompt-icon">&gt;_</span>
+            <span>Terminal</span>
+            <span id="term-cwd-badge" class="term-badge-cwd">~</span>
+          </div>
+          <div class="terminal-header-right">
+            <div id="term-status-badge" class="term-status-badge">
+              <span class="term-status-dot"></span>
+              <span id="term-status-text">Shell Siap</span>
+            </div>
+            <button class="btn-term-header btn-term-danger" id="btn-term-header-kill" onclick="killTerminalJob()" title="Kirim sinyal SIGINT (Ctrl + C)" style="display:none;">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <span>Stop</span>
+            </button>
+            <button class="btn-term-header" onclick="clearTerminalOutput()" title="Bersihkan riwayat layar terminal">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Clear</span>
+            </button>
+          </div>
+        </div>
+        <div class="terminal-body" id="term-output"></div>
+        <!-- Live Running Status Indicator -->
+        <div id="term-running-bar" class="term-running-bar" style="display: none;">
+          <div class="term-running-info">
+            <span class="spinner-dot"></span>
+            <span id="term-running-text">Proses sedang berjalan...</span>
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="killTerminalJob()" title="Hentikan proses yang sedang berjalan (Ctrl + C)">
+            <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Hentikan Proses (Ctrl + C)</span>
+          </button>
+        </div>
+
+        <!-- Terminal Quick Action & Virtual Keys Bar -->
+        <div class="term-quick-bar">
+          <div class="term-quick-row">
+            <span class="term-quick-label">PINTASAN:</span>
+            <button class="term-cmd-chip primary" onclick="executeQuickCommand('proot-distro login ubuntu', true)" title="Buka CLI Linux Ubuntu VPS">🐧 Masuk Ubuntu</button>
+            <button class="term-cmd-chip info" onclick="executeQuickCommand('pm2 status', true)" title="Lihat status bot / service PM2">⚡ PM2 Status</button>
+            <button class="term-cmd-chip success" onclick="executeQuickCommand('pkg update -y', true)" title="Update semua paket Termux">📦 Pkg Update</button>
+            <button class="term-cmd-chip warning" onclick="executeQuickCommand('termux-battery-status', true)" title="Cek status baterai HP">🔋 Baterai HP</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('ls -la', true)" title="Lihat isi direktori saat ini">📋 ls -la</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('cd ~', true)" title="Pindah ke Home direktori">🏠 cd ~</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('cd ~/AustinNode', true)" title="Pindah ke direktori AustinNode">⚙️ cd ~/AustinNode</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('cd /sdcard', true)" title="Pindah ke Memori Internal HP">📱 cd /sdcard</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('top -n 1', true)" title="Monitor proses CPU">📊 top</button>
+            <button class="term-cmd-chip" onclick="executeQuickCommand('ifconfig', true)" title="Lihat IP jaringan">🌐 ifconfig</button>
+          </div>
+          <div class="term-quick-row term-keys-row">
+            <span class="term-quick-label">TOMBOL:</span>
+            <button class="term-key-chip danger" onclick="insertTerminalKey('ctrl-c')" title="Kirim Sinyal Stop (Ctrl + C)">Ctrl + C</button>
+            <button class="term-key-chip" onclick="insertTerminalKey('tab')" title="Auto-complete (Tab)">Tab</button>
+            <button class="term-key-chip" onclick="insertTerminalKey('up')" title="Riwayat Sebelumnya (↑)">↑ Up</button>
+            <button class="term-key-chip" onclick="insertTerminalKey('down')" title="Riwayat Berikutnya (↓)">↓ Down</button>
+            <button class="term-key-chip" onclick="insertTerminalKey('clear')" title="Bersihkan Layar">Clear</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('|')">|</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('/')">/</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('~')">~</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('-')">-</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('&')">&amp;</button>
+            <button class="term-key-chip key-char" onclick="insertTerminalKey('$')">$</button>
+          </div>
+        </div>
+
+        <div class="terminal-input-bar">
+          <div class="terminal-prompt-prefix" id="term-prompt-sym">
+            <span class="prompt-tilde">~</span>
+            <span class="prompt-dollar">$</span>
+          </div>
+          <input type="text" class="terminal-input" id="term-input" placeholder="Ketik perintah (contoh: ls, pwd, pkg update)..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" onkeydown="handleTerminalKey(event)">
+          <div class="terminal-input-actions">
+            <button class="btn-term-execute" id="btn-term-submit" onclick="handleTerminalSubmitClick()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              <span id="btn-term-submit-text">Execute</span>
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-term-stop" onclick="killTerminalJob()" style="display:none;" title="Hentikan proses yang sedang berjalan (Ctrl + C)">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+              <span>Stop</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. TAB LOGS & PM2 -->
+    <section id="tab-services" class="tab-content">
+      <!-- 1. Log Server -->
+      <div class="log-card">
+        <div class="log-card-header">
+          <div class="log-card-title">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;color:#3B82F6;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+            <span>Logs Server</span>
+          </div>
+          <div class="fm-actions">
+            <button class="btn btn-sm btn-action-blue" onclick="fetchWebsiteLogs()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              Refresh
+            </button>
+            <button class="btn btn-sm btn-action-red" onclick="clearServerLog()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              Bersihkan Log
+            </button>
+          </div>
+        </div>
+        <div class="log-terminal-box" id="website-log-view"></div>
+      </div>
+
+      <!-- 2. Manajer Proses PM2 -->
+      <div class="log-card">
+        <div class="log-card-header">
+          <div class="log-card-title">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;color:#F59E0B;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>Logs PM2</span>
+          </div>
+          <div class="fm-actions">
+            <button class="btn btn-sm btn-action-amber" onclick="loadPm2Status()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21h5v-5"/></svg>
+              Cek PM2
+            </button>
+          </div>
+        </div>
+        <div id="pm2-processes-container" style="padding: 14px 16px;">
+          <div style="font-size:13px;color:var(--text-muted);">Memeriksa status PM2...</div>
+        </div>
+        <div id="pm2-log-section" style="display:none;border-top:1px solid var(--border-color);">
+          <div style="padding:10px 16px;background:rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between;">
+            <span id="pm2-log-title" style="font-size:12px;font-family:var(--font-mono);color:#FBBF24;">Log PM2: -</span>
+            <button class="btn btn-sm" onclick="closePm2LogView()">Tutup Log</button>
+          </div>
+          <div class="log-terminal-box" id="pm2-log-view" style="height:260px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer Watermark -->
+    <footer style="text-align:center;padding:32px 16px 20px;color:var(--text-dim);font-size:12px;font-family:var(--font-mono);border-top:1px solid var(--border-subtle);margin-top:40px;">
+      Created by <strong>Austin</strong>
+    </footer>
+  </main>
+
+  <!-- MODAL: LOGIN -->
+  <div class="modal-overlay" id="modal-login">
+    <div class="modal-box">
+      <div class="brand" style="margin-bottom: 8px;">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+        </div>
+        <h2 style="font-size: 18px;">Login Server</h2>
+      </div>
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Masukkan username dan password server untuk mengakses dashboard.</p>
+      
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-input" id="login-user" value="admin" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-pass" autocomplete="current-password" placeholder="Password server">
+      </div>
+      <div class="modal-footer" style="margin-top: 14px;">
+        <button class="btn btn-primary" style="width: 100%;" onclick="submitLogin()">Masuk ke Server</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PENGATURAN AKUN ADMIN -->
+  <div class="modal-overlay" id="modal-account-settings">
+    <div class="modal-box" style="max-width: 440px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 class="modal-title" style="margin:0; font-size:16px; display:flex; align-items:center; gap:8px;">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:var(--accent-blue);fill:none;stroke-width:2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          Pengaturan Akun Admin
+        </h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-account-settings')">✕</button>
+      </div>
+      <p style="font-size: 12.5px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+        Ubah username dan password untuk login ke Web Dashboard. Kredensial baru akan disimpan secara permanen.
+      </p>
+      
+      <div class="form-group" style="margin-bottom: 10px;">
+        <label class="form-label" for="settings-username">Username Admin Baru</label>
+        <input type="text" class="form-input" id="settings-username" placeholder="admin" autocomplete="username">
+      </div>
+      <div class="form-group" style="margin-bottom: 10px;">
+        <label class="form-label" for="settings-current-pass">Password Saat Ini <span style="color:var(--accent-rose)">*</span></label>
+        <input type="password" class="form-input" id="settings-current-pass" placeholder="Masukkan password saat ini" autocomplete="current-password">
+      </div>
+      <div class="form-group" style="margin-bottom: 10px;">
+        <label class="form-label" for="settings-new-pass">Password Baru (Opsional)</label>
+        <input type="password" class="form-input" id="settings-new-pass" placeholder="Minimal 5 karakter" autocomplete="new-password">
+      </div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label" for="settings-confirm-pass">Konfirmasi Password Baru</label>
+        <input type="password" class="form-input" id="settings-confirm-pass" placeholder="Ulangi password baru" autocomplete="new-password">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-account-settings')">Batal</button>
+        <button class="btn btn-primary btn-sm" onclick="saveAccountSettings()">Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: KONFIRMASI UNIVERSAL -->
+  <div class="modal-overlay" id="modal-app-confirm">
+    <div class="concept-confirm-box">
+      <div class="concept-icon-wrap" id="concept-confirm-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10" stroke-width="1.8"></circle>
+          <line x1="12" y1="7" x2="12" y2="13" stroke-width="2.2" stroke-linecap="round"></line>
+          <circle cx="12" cy="17" r="1.2" fill="currentColor"></circle>
+        </svg>
+      </div>
+      <h3 class="concept-title" id="concept-confirm-title">Konfirmasi Aksi</h3>
+      <p class="concept-desc" id="concept-confirm-msg">Deskripsi aksi...</p>
+      <p class="concept-warning" id="concept-confirm-warn">Tindakan ini tidak dapat dibatalkan.</p>
+      <div class="concept-btn-row">
+        <button class="concept-btn-action" id="concept-confirm-action-btn" onclick="executeConceptConfirm()">
+          Ya, Lanjutkan
+        </button>
+        <button class="concept-btn-cancel" onclick="closeModal('modal-app-confirm')">
+          Batal
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FOLDER BARU -->
+  <div class="modal-overlay" id="modal-mkdir">
+    <div class="modal-box">
+      <h3 class="modal-title">Buat Folder Baru</h3>
+      <div class="form-group">
+        <label class="form-label">Nama Folder</label>
+        <input type="text" class="form-input" id="mkdir-name" placeholder="nama-folder">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-mkdir')">Batal</button>
+        <button class="btn btn-primary btn-sm" onclick="submitMkdir()">Buat Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FILE BARU -->
+  <div class="modal-overlay" id="modal-create-file">
+    <div class="modal-box">
+      <h3 class="modal-title">Buat File Baru</h3>
+      <div class="form-group">
+        <label class="form-label">Nama File</label>
+        <input type="text" class="form-input" id="create-file-name" placeholder="script.sh / index.js">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-create-file')">Batal</button>
+        <button class="btn btn-primary btn-sm" onclick="submitCreateFile()">Buat File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RENAME -->
+  <div class="modal-overlay" id="modal-rename">
+    <div class="modal-box">
+      <h3 class="modal-title">Ubah Nama</h3>
+      <div class="form-group">
+        <label class="form-label">Nama Baru</label>
+        <input type="text" class="form-input" id="rename-new-name">
+        <input type="hidden" id="rename-old-path">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-rename')">Batal</button>
+        <button class="btn btn-primary btn-sm" onclick="submitRename()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TEXT EDITOR -->
+  <div class="modal-overlay" id="modal-editor">
+    <div class="modal-box" style="max-width: 800px; width: 95vw;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <h3 class="modal-title" id="editor-title" style="margin:0; font-family:var(--font-mono); font-size:14px;">Edit File</h3>
+        <button class="btn btn-sm" onclick="closeModal('modal-editor')">✕</button>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <textarea id="editor-content" class="form-input" style="height: 380px; font-family: var(--font-mono); font-size: 12px; line-height: 1.45; resize: vertical;"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sm" onclick="closeModal('modal-editor')">Batal</button>
+        <button class="btn btn-primary btn-sm" onclick="saveFileContent()">Simpan Perubahan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-wrap"></div>
+
+  <script>
+    let currentDir = '';
+    let defaultHomeDir = '';
+    let defaultServerDir = '';
+    let currentEditingPath = '';
+    const cmdHistory = [];
+    let cmdHistoryIdx = -1;
+    let currentTerminalJobId = null;
+
+    async function api(endpoint, options = {}) {
+      const res = await fetch(endpoint, options);
+      if (res.status === 401) {
+        showLoginModal();
+        throw new Error('Unauthorized');
+      }
+      return res.json();
+    }
+
+    function showToast(message, type = 'info') {
+      const wrap = document.getElementById('toast-wrap');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      if (type === 'error') toast.style.borderLeftColor = '#EF4444';
+      if (type === 'success') toast.style.borderLeftColor = '#10B981';
+      toast.textContent = message;
+      wrap.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function copyToClipboard(text) {
+      if (navigator.clipboard && window.isSecureContext) {
+        return navigator.clipboard.writeText(text);
+      }
+      return new Promise((resolve, reject) => {
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.style.position = 'fixed';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          const success = document.execCommand('copy');
+          document.body.removeChild(textarea);
+          if (success) resolve();
+          else reject(new Error('Gagal menyalin'));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    function copyText(txt) {
+      copyToClipboard(txt).then(() => {
+        showToast('Teks disalin ke clipboard!', 'success');
+      }).catch(() => {
+        showToast('Gagal menyalin teks', 'error');
+      });
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function formatUptime(sec) {
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h > 0) return `${h}j ${m}m ${s}d`;
+      if (m > 0) return `${m}m ${s}d`;
+      return `${s}d`;
+    }
+
+    function escapeHtml(str) {
+      return (str || '').replace(/[&<>'"]/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[c]));
+    }
+
+    function switchTab(tabId) {
+      if (tabId === 'terminal') tabId = 'tab-terminal';
+      if (tabId === 'files') tabId = 'tab-files';
+      if (tabId === 'monitoring') tabId = 'tab-monitoring';
+      if (tabId === 'services') tabId = 'tab-services';
+
+      document.querySelectorAll('.tab-btn').forEach((btn) => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach((c) => c.classList.remove('active'));
+      
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) targetContent.classList.add('active');
+
+      const btn = Array.from(document.querySelectorAll('.tab-btn')).find((b) => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
+      if (btn) btn.classList.add('active');
+
+      if (tabId === 'tab-files' && !currentDir) {
+        loadFiles();
+      }
+      if (tabId === 'tab-services') {
+        fetchWebsiteLogs();
+        loadPm2Status();
+      }
+    }
+
+    // Modal Helpers
+    let pendingConceptAction = null;
+    function showConceptConfirm(opts) {
+      document.getElementById('concept-confirm-title').textContent = opts.title || 'Konfirmasi Tindakan';
+      document.getElementById('concept-confirm-msg').innerHTML = opts.messageHtml || opts.message || '';
+      
+      const warnEl = document.getElementById('concept-confirm-warn');
+      if (opts.warningText) {
+        warnEl.textContent = opts.warningText;
+        warnEl.style.display = 'block';
+      } else {
+        warnEl.style.display = 'none';
+      }
+
+      const actBtn = document.getElementById('concept-confirm-action-btn');
+      actBtn.textContent = opts.actionText || 'Ya, Lanjutkan';
+      actBtn.style.background = opts.actionColor || 'var(--accent-rose)';
+
+      pendingConceptAction = opts.onConfirm || null;
+      document.getElementById('modal-app-confirm').classList.add('open');
+    }
+
+    function executeConceptConfirm() {
+      closeModal('modal-app-confirm');
+      if (typeof pendingConceptAction === 'function') {
+        pendingConceptAction();
+      }
+      pendingConceptAction = null;
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.remove('open');
+    }
+
+    function showLoginModal() {
+      const modal = document.getElementById('modal-login');
+      if (modal) modal.classList.add('open');
+    }
+
+    async function submitLogin() {
+      const user = document.getElementById('login-user').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      if (!user || !pass) {
+        showToast('Harap isi username dan password', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          closeModal('modal-login');
+          showToast('Login berhasil', 'success');
+          updateStats();
+        } else {
+          showToast(data.message || 'Login gagal', 'error');
+        }
+      } catch (e) {
+        showToast('Error koneksi login', 'error');
+      }
+    }
+
+    async function doLogout() {
+      try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+        showLoginModal();
+        showToast('Anda telah logout', 'info');
+      } catch (e) {}
+    }
+
+    // Monitoring
+    async function updateStats() {
+      try {
+        const data = await api('/api/system/stats');
+        if (!data) return;
+
+        // Specs
+        if (data.cpu) {
+          const cpuModel = data.cpu.model || 'CPU Server';
+          const cpuPct = data.cpu.usagePercent !== undefined ? ` • ${data.cpu.usagePercent}%` : '';
+          document.getElementById('spec-cpu').textContent = `${cpuModel}${cpuPct}`;
+        } else {
+          document.getElementById('spec-cpu').textContent = '-';
+        }
+
+        if (data.memory) {
+          const totalStr = formatBytes(data.memory.totalBytes);
+          const freeStr = formatBytes(data.memory.freeBytes);
+          document.getElementById('spec-ram').textContent = `${totalStr} • Sisa ${freeStr}`;
+        } else {
+          document.getElementById('spec-ram').textContent = '-';
+        }
+
+        if (data.disks && data.disks.length > 0) {
+          const mainDisk = data.disks[0];
+          document.getElementById('spec-disk').textContent = `${formatBytes(mainDisk.totalBytes)} • Sisa ${formatBytes(mainDisk.freeBytes)}`;
+        }
+
+        const specStatus = document.getElementById('spec-status');
+        if (specStatus) {
+          specStatus.textContent = 'Online 24/7 (Stabil)';
+        }
+
+        document.getElementById('spec-os').textContent = `${data.platform || '-'} (${data.hostname || '-'})`;
+        document.getElementById('spec-arch').textContent = data.arch ? (data.arch.includes('64') ? `${data.arch} (64-bit)` : (data.arch.includes('arm') ? `${data.arch} (32-bit)` : data.arch)) : '-';
+        document.getElementById('spec-runtime').textContent = data.nodeVersion ? (data.nodeVersion.startsWith('Node') ? data.nodeVersion : `Node ${data.nodeVersion}`) : '-';
+
+        // CPU
+        const cpuPct = data.cpu ? (data.cpu.usagePercent || 0) : 0;
+        document.getElementById('cpu-percent').textContent = `${cpuPct}%`;
+        document.getElementById('cpu-usage').textContent = `${cpuPct}%`;
+        document.getElementById('cpu-bar').style.width = `${cpuPct}%`;
+        document.getElementById('cpu-sub').textContent = `${data.cpu ? data.cpu.cores : 4} Cores • Load: ${(data.cpu && data.cpu.loadavg) ? data.cpu.loadavg[0].toFixed(2) : '-'}`;
+
+        // RAM
+        if (data.memory) {
+          const usedMB = Math.round(data.memory.usedBytes / 1048576);
+          const totalMB = Math.round(data.memory.totalBytes / 1048576);
+          const ramPct = data.memory.usagePercent || 0;
+          document.getElementById('ram-used').textContent = `${usedMB} MB`;
+          document.getElementById('ram-total').textContent = `Total: ${totalMB} MB`;
+          document.getElementById('ram-percent').textContent = `${ramPct}%`;
+          document.getElementById('ram-bar').style.width = `${ramPct}%`;
+        }
+
+        // Disk
+        if (data.disks && data.disks.length > 0) {
+          const mainDisk = data.disks[0];
+          document.getElementById('disk-free').textContent = `${formatBytes(mainDisk.freeBytes)} Bebas`;
+          document.getElementById('disk-total').textContent = `Total: ${formatBytes(mainDisk.totalBytes)} (${mainDisk.mount})`;
+          document.getElementById('disk-percent').textContent = `${mainDisk.usagePercent}%`;
+          document.getElementById('disk-bar').style.width = `${mainDisk.usagePercent}%`;
+          document.getElementById('spec-disk').textContent = `${formatBytes(mainDisk.freeBytes)} Bebas / ${formatBytes(mainDisk.totalBytes)}`;
+        }
+
+        // Runtime Uptime
+        document.getElementById('val-uptime').textContent = formatUptime(data.uptimeSeconds || 0);
+        document.getElementById('val-panel-uptime').textContent = `Panel: ${formatUptime(data.panelUptimeSeconds || 0)}`;
+
+        // Battery
+        if (data.battery) {
+          const bPct = data.battery.percentage !== null ? `${data.battery.percentage}%` : '-';
+          const bNum = data.battery.percentage !== null ? data.battery.percentage : 0;
+          document.getElementById('val-battery').textContent = bPct;
+
+          const batBar = document.getElementById('battery-bar');
+          if (batBar) {
+            batBar.style.width = `${Math.min(100, Math.max(5, bNum))}%`;
+            if (data.battery.isCharging) {
+              batBar.style.background = 'linear-gradient(90deg, #10B981, #3B82F6)';
+            } else if (bNum <= 20) {
+              batBar.style.background = '#EF4444';
+            } else {
+              batBar.style.background = '#3B82F6';
+            }
+          }
+
+          const badge = document.getElementById('battery-status-badge');
+          if (badge) {
+            badge.textContent = data.battery.status || (data.battery.isCharging ? 'Charging' : 'Discharging');
+            badge.style.color = data.battery.isCharging ? 'var(--accent-emerald)' : '#93C5FD';
+          }
+
+          const wattEl = document.getElementById('val-battery-watts');
+          if (wattEl) {
+            if (data.battery.watts !== null && data.battery.watts !== undefined) {
+              const sign = data.battery.isCharging ? '+' : '';
+              wattEl.textContent = `${sign}${data.battery.watts} W`;
+              wattEl.style.color = data.battery.isCharging ? '#34D399' : '#60A5FA';
+            } else {
+              wattEl.textContent = data.battery.isCharging ? '⚡ Charging' : '🔋 Discharging';
+            }
+          }
+
+          document.getElementById('val-battery-sub').textContent = data.battery.powerText || `Status: ${data.battery.status || 'Normal'}`;
+
+          const batWattVal = document.getElementById('bat-watt-val');
+          if (batWattVal) {
+            if (data.battery.watts !== null && data.battery.watts !== undefined) {
+              const sign = data.battery.isCharging ? '+' : '';
+              batWattVal.textContent = `${sign}${data.battery.watts} W`;
+              batWattVal.style.color = data.battery.isCharging ? '#34D399' : '#60A5FA';
+            } else {
+              batWattVal.textContent = '-';
+            }
+          }
+
+          const batVoltVal = document.getElementById('bat-volt-val');
+          if (batVoltVal) batVoltVal.textContent = data.battery.voltage || '-';
+
+          const batCurrVal = document.getElementById('bat-current-val');
+          if (batCurrVal) batCurrVal.textContent = data.battery.current || '-';
+
+          const batTempVal = document.getElementById('bat-temp-val');
+          if (batTempVal) batTempVal.textContent = data.battery.temperature ? `${data.battery.temperature}°C` : '-';
+        }
+
+        // Thermal
+        if (data.thermal) {
+          const cpuT = data.thermal.cpu || '-';
+          document.getElementById('val-temp-cpu').firstElementChild.textContent = cpuT;
+          document.getElementById('spec-thermal').textContent = `${cpuT} (${data.thermal.status || 'Optimal'})`;
+          document.getElementById('val-temp-sub').textContent = `Baterai: ${data.thermal.battery || '-'} • Status: ${data.thermal.status || 'Optimal'}`;
+          
+          const rawDeg = data.thermal.cpuTemp || 40;
+          const barPct = Math.min(100, Math.max(10, Math.round((rawDeg / 85) * 100)));
+          document.getElementById('temp-bar').style.width = `${barPct}%`;
+          
+          const badge = document.getElementById('thermal-badge');
+          badge.textContent = data.thermal.status || 'Optimal';
+          badge.style.color = rawDeg >= 75 ? '#EF4444' : (rawDeg >= 60 ? '#F59E0B' : '#10B981');
+
+          if (Array.isArray(data.thermal.cores)) {
+            data.thermal.cores.forEach((deg, idx) => {
+              const el = document.getElementById(`core-temp-${idx + 1}`);
+              if (el) el.textContent = deg !== null ? `${deg}°C` : '-';
+            });
+          }
+        }
+
+        // VPS OpenSSH Status
+        const vpsBadge = document.getElementById('vps-live-badge');
+        const vpsStartBtn = document.getElementById('btn-vps-start');
+        const vpsStopBtn = document.getElementById('btn-vps-stop');
+        const isVpsRunning = data.vps && data.vps.running;
+        
+        if (isVpsRunning) {
+          vpsBadge.innerHTML = '<span class="status-dot"></span> Aktif';
+          vpsBadge.style.color = 'var(--accent-emerald)';
+          vpsBadge.style.borderColor = 'rgba(16, 185, 129, 0.25)';
+          if (vpsStartBtn) vpsStartBtn.style.display = 'none';
+          if (vpsStopBtn) vpsStopBtn.style.display = 'inline-flex';
+        } else {
+          vpsBadge.innerHTML = '<span class="status-dot" style="background:#EF4444;box-shadow:none;"></span> Mati';
+          vpsBadge.style.color = '#F87171';
+          vpsBadge.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+          if (vpsStartBtn) vpsStartBtn.style.display = 'inline-flex';
+          if (vpsStopBtn) vpsStopBtn.style.display = 'none';
+        }
+
+        const vpsCmd = (data.vps && data.vps.publicCommand) ? data.vps.publicCommand : 'Menghubungkan tunnel remote SSH...';
+        document.getElementById('vps-ssh-command').textContent = vpsCmd;
+        
+        const vpsBadgeEl = document.getElementById('vps-tunnel-badge');
+        if (vpsBadgeEl) {
+          if (data.vps && data.vps.publicCommand) {
+            vpsBadgeEl.textContent = 'Public Tunnel (Aktif)';
+            vpsBadgeEl.style.color = '#34D399';
+            vpsBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+          } else {
+            vpsBadgeEl.textContent = 'Menghubungkan...';
+            vpsBadgeEl.style.color = '#93C5FD';
+            vpsBadgeEl.style.background = 'rgba(59, 130, 246, 0.15)';
+          }
+        }
+
+        const localIp = (data.network && data.network.localIPs && data.network.localIPs[0]) ? data.network.localIPs[0].address : '127.0.0.1';
+        const localWebUrl = `http://${localIp}:8080`;
+        
+        document.getElementById('vps-local-ssh-code').textContent = `ssh root@${localIp} -p 2222`;
+        document.getElementById('ribbon-local-url').textContent = localWebUrl;
+        document.getElementById('local-web-url-text').textContent = localWebUrl;
+        
+        const openLocalBtn = document.getElementById('btn-open-local');
+        if (openLocalBtn) openLocalBtn.href = localWebUrl;
+
+        // Cloudflare Public Domain & Ribbon
+        const pubUrl = data.network ? data.network.publicUrl : null;
+        const cfText = document.getElementById('cloudflare-url-text');
+        const cfOpen = document.getElementById('btn-open-cf');
+        const cfBadge = document.getElementById('cloudflare-live-badge');
+        const ribbonPub = document.getElementById('ribbon-public-url');
+        const ribbonVisit = document.getElementById('ribbon-btn-visit');
+
+        if (pubUrl) {
+          cfText.textContent = pubUrl;
+          cfOpen.href = pubUrl;
+          cfOpen.style.display = 'inline-flex';
+          cfBadge.innerHTML = '<span class="status-dot"></span> Terhubung';
+          cfBadge.style.color = 'var(--accent-emerald)';
+
+          if (ribbonPub) ribbonPub.textContent = pubUrl;
+          if (ribbonVisit) {
+            ribbonVisit.href = pubUrl;
+            ribbonVisit.style.display = 'inline-flex';
+          }
+        } else {
+          cfText.textContent = 'Menghubungkan domain publik...';
+          cfOpen.style.display = 'none';
+          cfBadge.innerHTML = '<span class="status-dot" style="background:#F59E0B;box-shadow:none;"></span> Menghubungkan';
+          cfBadge.style.color = '#F59E0B';
+
+          if (ribbonPub) ribbonPub.textContent = 'Menghubungkan tunnel...';
+          if (ribbonVisit) ribbonVisit.style.display = 'none';
+        }
+      } catch (e) {}
+    }
+
+    function copySshCommand() {
+      const cmd = document.getElementById('vps-ssh-command').textContent;
+      if (cmd.startsWith('ssh')) copyText(cmd);
+      else showToast('Tunnel SSH publik belum aktif', 'info');
+    }
+
+    function copyLocalSshCommand() {
+      const cmd = document.getElementById('vps-local-ssh-code').textContent;
+      copyText(cmd);
+    }
+
+    function copyCfUrl() {
+      const url = document.getElementById('cloudflare-url-text').textContent;
+      if (url.startsWith('http')) copyText(url);
+      else showToast('Domain publik belum aktif', 'info');
+    }
+
+    function copyLocalWebUrl() {
+      const url = document.getElementById('local-web-url-text').textContent;
+      copyText(url);
+    }
+
+    function copyRibbonPublicUrl() {
+      const url = document.getElementById('ribbon-public-url').textContent;
+      if (url.startsWith('http')) copyText(url);
+      else showToast('Domain publik belum aktif', 'info');
+    }
+
+    function copyRibbonLocalUrl() {
+      const url = document.getElementById('ribbon-local-url').textContent;
+      copyText(url);
+    }
+
+    async function openAccountSettings() {
+      try {
+        const res = await api('/api/settings/account');
+        if (res && res.username) {
+          document.getElementById('settings-username').value = res.username;
+        }
+      } catch (e) {}
+      document.getElementById('settings-current-pass').value = '';
+      document.getElementById('settings-new-pass').value = '';
+      document.getElementById('settings-confirm-pass').value = '';
+      const modal = document.getElementById('modal-account-settings');
+      if (modal) modal.classList.add('open');
+    }
+
+    async function saveAccountSettings() {
+      const currentPassword = document.getElementById('settings-current-pass').value.trim();
+      const newUsername = document.getElementById('settings-username').value.trim();
+      const newPassword = document.getElementById('settings-new-pass').value.trim();
+      const confirmPassword = document.getElementById('settings-confirm-pass').value.trim();
+
+      if (!currentPassword) {
+        showToast('Password saat ini harus diisi', 'error');
+        return;
+      }
+      if (newPassword && newPassword.length < 5) {
+        showToast('Password baru minimal 5 karakter', 'error');
+        return;
+      }
+      if (newPassword && newPassword !== confirmPassword) {
+        showToast('Konfirmasi password baru tidak cocok', 'error');
+        return;
+      }
+
+      showToast('Menyimpan perubahan akun...', 'info');
+      try {
+        const res = await api('/api/settings/account', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ currentPassword, newUsername, newPassword })
+        });
+        if (res.ok) {
+          showToast(res.message || 'Kredensial akun berhasil diperbarui!', 'success');
+          closeModal('modal-account-settings');
+        } else {
+          showToast(res.message || 'Gagal mengubah pengaturan akun', 'error');
+        }
+      } catch (e) {
+        showToast('Error memperbarui akun: ' + e.message, 'error');
+      }
+    }
+
+    async function doVpsAction(action) {
+      showToast(`Sedang memproses ${action} VPS...`, 'info');
+      try {
+        const res = await api(`/api/vps/${action}`, { method: 'POST' });
+        showToast(res.message || 'Berhasil', res.ok ? 'success' : 'error');
+        updateStats();
+      } catch (e) {}
+    }
+
+    function confirmVpsStop() {
+      showConceptConfirm({
+        title: 'Hentikan OpenSSH VPS',
+        message: 'Apakah Anda yakin ingin mematikan service OpenSSH VPS? Sesi terminal SSH luar akan terputus.',
+        actionText: 'Hentikan VPS',
+        onConfirm: () => doVpsAction('stop')
+      });
+    }
+
+    function doRestartPanel() {
+      showConceptConfirm({
+        title: 'Restart Server Panel',
+        message: 'Mulai ulang server panel sekarang? Dashboard akan otomatis memuat ulang dalam beberapa detik.',
+        actionText: 'Restart Sekarang',
+        actionColor: '#3B82F6',
+        onConfirm: async () => {
+          showToast('Server panel sedang dimulai ulang...', 'info');
+          try {
+            await fetch('/api/restart-panel', { method: 'POST' });
+            setTimeout(() => {
+              location.reload();
+            }, 3000);
+          } catch (e) {}
+        }
+      });
+    }
+
+    async function doReconnectTunnel() {
+      showToast('Menghubungkan ulang tunnel publik...', 'info');
+      try {
+        const res = await api('/api/tunnel/reconnect', { method: 'POST' });
+        showToast(res.message || 'Tunnel dihubungkan ulang', 'info');
+        setTimeout(updateStats, 2000);
+      } catch (e) {}
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatFileDate(isoStr) {
+      if (!isoStr) return '-';
+      try {
+        const d = new Date(isoStr);
+        if (isNaN(d.getTime())) return isoStr;
+        const day = d.getDate();
+        const month = d.getMonth() + 1;
+        const year = d.getFullYear();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const mins = String(d.getMinutes()).padStart(2, '0');
+        return `${day}/${month}/${year}, ${hours}.${mins}`;
+      } catch (e) {
+        return isoStr;
+      }
+    }
+
+    // File Manager
+    async function loadFiles(targetPath = '') {
+      const p = targetPath || currentDir;
+      try {
+        const res = await api(`/api/files/list?path=${encodeURIComponent(p)}`);
+        if (!res.ok) {
+          showToast(res.message || 'Gagal memuat file', 'error');
+          return;
+        }
+
+        const d = res.data;
+        currentDir = d.currentPath;
+        defaultHomeDir = d.homeDir;
+        defaultServerDir = d.serverDir;
+
+        // Render Breadcrumbs
+        renderBreadcrumbs(d.currentPath);
+
+        // Render Table
+        const tbody = document.getElementById('fm-tbody');
+        if (!d.items || d.items.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 32px; color: var(--text-muted);">Folder ini kosong</td></tr>`;
+          return;
+        }
+
+        let html = '';
+        if (d.parentPath && d.parentPath !== d.currentPath) {
+          html += `
+            <tr>
+              <td>
+                <div class="file-name-cell" onclick="loadFiles('${escapeHtml(d.parentPath)}')">
+                  <svg class="file-icon dir" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+                  <span>..</span>
+                </div>
+              </td>
+              <td style="color:#64748b;">-</td>
+              <td></td>
+              <td></td>
+            </tr>
+          `;
+        }
+
+        d.items.forEach((item) => {
+          const safeItemPath = escapeHtml(item.path);
+          const safeItemName = escapeHtml(item.name);
+          const isZip = item.name.toLowerCase().endsWith('.zip');
+          const formattedDate = formatFileDate(item.modifiedAt);
+
+          html += `
+            <tr>
+              <td>
+                <div class="file-name-cell" onclick="${item.isDir ? `loadFiles('${safeItemPath}')` : `openFileEditor('${safeItemPath}')`}">
+                  ${item.isDir
+                    ? `<svg class="file-icon dir" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>`
+                    : `<svg class="file-icon file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`
+                  }
+                  <span style="${item.isDir ? 'font-weight:600;color:#f8fafc;' : 'color:#e2e8f0;'}">${safeItemName}</span>
+                </div>
+              </td>
+              <td style="font-family:var(--font-mono);font-size:12.5px;color:#64748b;">${item.isDir ? '-' : formatBytes(item.sizeBytes)}</td>
+              <td style="font-size:12.5px;color:#64748b;">${formattedDate}</td>
+              <td style="text-align: right;">
+                <div class="fm-actions" style="justify-content: flex-end; gap: 4px;">
+                  ${isZip ? `
+                    <button class="fm-action-icon fm-zip-icon" onclick="doUnzip('${safeItemPath}')" title="Ekstrak ZIP">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+                    </button>
+                  ` : ''}
+                  <a class="fm-action-icon" href="/api/files/download?path=${encodeURIComponent(item.path)}" download title="Unduh">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </a>
+                  <button class="fm-action-icon" onclick="openRenameModal('${safeItemPath}', '${safeItemName}')" title="Ubah Nama">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                  </button>
+                  <button class="fm-action-icon fm-delete-icon" onclick="confirmDeleteFile('${safeItemPath}', '${safeItemName}')" title="Hapus">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+
+        tbody.innerHTML = html;
+      } catch (e) {
+        showToast('Gagal memuat daftar file: ' + e.message, 'error');
+      }
+    }
+
+    function renderBreadcrumbs(fullPath) {
+      const bar = document.getElementById('fm-breadcrumbs');
+      if (!fullPath) return;
+      const normalized = fullPath.replace(/\\/g, '/');
+      const isWin = /^[a-zA-Z]:/.test(normalized);
+      const parts = normalized.split('/').filter(Boolean);
+
+      if (parts.length === 0) {
+        bar.innerHTML = `<span class="fm-path-segment" onclick="loadFiles('/')">root</span>`;
+        return;
+      }
+
+      let html = '';
+      if (!isWin) {
+        html += `<span class="fm-path-segment" onclick="loadFiles('/')" style="color:#38bdf8;font-weight:600;margin-right:4px;">/</span>`;
+      }
+
+      parts.forEach((part, i) => {
+        let target = '';
+        if (isWin) {
+          target = parts.slice(0, i + 1).join('/');
+          if (i === 0 && !target.endsWith('/')) target += '/';
+        } else {
+          target = '/' + parts.slice(0, i + 1).join('/');
+        }
+
+        if (i > 0) {
+          html += `<span style="color:#64748b;margin:0 4px;">/</span>`;
+        }
+        html += `<span class="fm-path-segment" onclick="loadFiles('${escapeHtml(target)}')">${escapeHtml(part)}</span>`;
+      });
+
+      bar.innerHTML = html;
+    }
+
+    function navigateTo(target) {
+      if (target) loadFiles(target);
+    }
+
+    async function handleFileUpload(e) {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      const formData = new FormData();
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const relPath = file.webkitRelativePath || file.name;
+        formData.append('files', file, relPath);
+      }
+
+      showToast(`Mengunggah ${files.length} file ke server...`, 'info');
+      try {
+        const res = await fetch(`/api/files/upload?dir=${encodeURIComponent(currentDir)}`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showToast(data.message || 'Upload berhasil', 'success');
+          loadFiles();
+        } else {
+          showToast(data.message || 'Upload gagal', 'error');
+        }
+      } catch (err) {
+        showToast('Gagal upload: ' + err.message, 'error');
+      } finally {
+        e.target.value = '';
+      }
+    }
+
+    async function handleZipUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+
+      showToast('Mengunggah & mengekstrak file ZIP...', 'info');
+      try {
+        const res = await fetch(`/api/files/upload?dir=${encodeURIComponent(currentDir)}`, {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const zipPath = currentDir + '/' + file.name;
+          await api(`/api/files/unzip?path=${encodeURIComponent(zipPath)}`, { method: 'POST' });
+          showToast('ZIP berhasil diunggah dan diekstrak!', 'success');
+          loadFiles();
+        }
+      } catch (err) {
+        showToast('Error ZIP upload: ' + err.message, 'error');
+      } finally {
+        e.target.value = '';
+      }
+    }
+
+    async function doUnzip(filePath) {
+      showToast('Mengekstrak berkas ZIP...', 'info');
+      try {
+        const res = await api(`/api/files/unzip?path=${encodeURIComponent(filePath)}`, { method: 'POST' });
+        showToast(res.message || 'Ekstrak selesai', res.ok ? 'success' : 'error');
+        loadFiles();
+      } catch (e) {}
+    }
+
+    function openMkdirModal() {
+      document.getElementById('mkdir-name').value = '';
+      document.getElementById('modal-mkdir').classList.add('open');
+    }
+
+    async function submitMkdir() {
+      const name = document.getElementById('mkdir-name').value.trim();
+      if (!name) return;
+      try {
+        const res = await api('/api/files/mkdir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parentPath: currentDir, name })
+        });
+        closeModal('modal-mkdir');
+        showToast(res.message || 'Folder dibuat', res.ok ? 'success' : 'error');
+        loadFiles();
+      } catch (e) {}
+    }
+
+    function openCreateFileModal() {
+      document.getElementById('create-file-name').value = '';
+      document.getElementById('modal-create-file').classList.add('open');
+    }
+
+    async function submitCreateFile() {
+      const name = document.getElementById('create-file-name').value.trim();
+      if (!name) return;
+      try {
+        const res = await api('/api/files/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parentPath: currentDir, name })
+        });
+        closeModal('modal-create-file');
+        showToast(res.message || 'File dibuat', res.ok ? 'success' : 'error');
+        loadFiles();
+      } catch (e) {}
+    }
+
+    function openRenameModal(oldPath, oldName) {
+      document.getElementById('rename-old-path').value = oldPath;
+      document.getElementById('rename-new-name').value = oldName;
+      document.getElementById('modal-rename').classList.add('open');
+    }
+
+    async function submitRename() {
+      const oldPath = document.getElementById('rename-old-path').value;
+      const newName = document.getElementById('rename-new-name').value.trim();
+      if (!newName) return;
+      try {
+        const res = await api('/api/files/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ oldPath, newName })
+        });
+        closeModal('modal-rename');
+        showToast(res.message || 'Nama diubah', res.ok ? 'success' : 'error');
+        loadFiles();
+      } catch (e) {}
+    }
+
+    function confirmDeleteFile(filePath, fileName) {
+      showConceptConfirm({
+        title: 'Hapus Berkas',
+        messageHtml: `Apakah Anda yakin ingin menghapus <b>${escapeHtml(fileName)}</b>?`,
+        actionText: 'Hapus Berkas',
+        onConfirm: async () => {
+          try {
+            const res = await api('/api/files/delete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ path: filePath })
+            });
+            showToast(res.message || 'Berhasil dihapus', 'info');
+            loadFiles();
+          } catch (e) {}
+        }
+      });
+    }
+
+    async function openFileEditor(filePath) {
+      try {
+        const res = await api('/api/files/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: filePath })
+        });
+        if (res.ok) {
+          currentEditingPath = filePath;
+          document.getElementById('editor-title').textContent = `Edit: ${filePath.split(/[\/\\]/).pop()}`;
+          document.getElementById('editor-content').value = res.content || '';
+          document.getElementById('modal-editor').classList.add('open');
+        } else {
+          showToast(res.message || 'Gagal membuka file', 'error');
+        }
+      } catch (e) {
+        showToast('Error membuka editor', 'error');
+      }
+    }
+
+    async function saveFileContent() {
+      if (!currentEditingPath) return;
+      const content = document.getElementById('editor-content').value;
+      try {
+        const res = await api('/api/files/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: currentEditingPath, content })
+        });
+        if (res.ok) {
+          showToast('File berhasil disimpan', 'success');
+          closeModal('modal-editor');
+        } else {
+          showToast(res.message || 'Gagal menyimpan', 'error');
+        }
+      } catch (e) {
+        showToast('Error menyimpan file', 'error');
+      }
+    }
+
+    // Web Terminal
+    function setTerminalRunning(isRunning, cmdText = '', pid = '') {
+      const runningBar = document.getElementById('term-running-bar');
+      const runningText = document.getElementById('term-running-text');
+      const submitText = document.getElementById('btn-term-submit-text');
+      const stopBtn = document.getElementById('btn-term-stop');
+      const headerKillBtn = document.getElementById('btn-term-header-kill');
+      const statusBadge = document.getElementById('term-status-badge');
+      const statusText = document.getElementById('term-status-text');
+      const promptSym = document.getElementById('term-prompt-sym');
+      const input = document.getElementById('term-input');
+
+      if (isRunning) {
+        if (runningBar) runningBar.style.display = 'flex';
+        if (stopBtn) stopBtn.style.display = 'inline-flex';
+        if (headerKillBtn) headerKillBtn.style.display = 'inline-flex';
+        if (statusBadge) {
+          statusBadge.className = 'term-status-badge running';
+          if (statusText) statusText.textContent = 'Proses Berjalan';
+        }
+        if (promptSym) {
+          promptSym.innerHTML = '<span style="color:#38BDF8;font-weight:700;">&gt;</span>';
+        }
+        if (runningText) runningText.textContent = `Menjalankan: ${cmdText} ${pid ? `(PID: ${pid})` : ''}...`;
+        if (submitText) {
+          submitText.textContent = 'Kirim Input';
+        }
+        if (input) input.placeholder = 'Ketik input / respons ke proses lalu tekan Enter (misal: Y, pairing code, nomor WA)...';
+      } else {
+        if (runningBar) runningBar.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'none';
+        if (headerKillBtn) headerKillBtn.style.display = 'none';
+        if (statusBadge) {
+          statusBadge.className = 'term-status-badge';
+          if (statusText) statusText.textContent = 'Shell Siap';
+        }
+        if (promptSym) {
+          promptSym.innerHTML = '<span class="prompt-tilde">~</span> <span class="prompt-dollar">$</span>';
+        }
+        if (submitText) {
+          submitText.textContent = 'Execute';
+        }
+        if (input) input.placeholder = 'Ketik perintah (contoh: ls, pwd, pkg update)...';
+      }
+    }
+
+    function handleTerminalSubmitClick() {
+      if (currentTerminalJobId) {
+        sendTerminalInput();
+      } else {
+        submitTerminalCommand();
+      }
+    }
+
+    async function sendTerminalInput() {
+      const input = document.getElementById('term-input');
+      const text = input.value;
+      if (!currentTerminalJobId) return;
+
+      input.value = '';
+      appendTerminal(`${text}\n`);
+
+      try {
+        await api('/api/terminal/input', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: currentTerminalJobId, input: text })
+        });
+      } catch (e) {
+        showToast('Gagal mengirim input: ' + e.message, 'error');
+      }
+    }
+
+    function appendTerminal(text) {
+      if (!text) return;
+      const clean = text.replace(/WARNING:\s*apt\s+does\s+not\s+have\s+a\s+stable\s+cli\s+interface[^\r\n]*\r?\n?/gi, '');
+      if (!clean) return;
+      const out = document.getElementById('term-output');
+      out.textContent += clean;
+      out.scrollTop = out.scrollHeight;
+    }
+
+    function clearTerminalOutput() {
+      document.getElementById('term-output').textContent = '';
+    }
+
+    function handleTerminalKey(e) {
+      if (e.key === 'Enter') {
+        if (currentTerminalJobId) {
+          sendTerminalInput();
+        } else {
+          submitTerminalCommand();
+        }
+      } else if (e.key === 'ArrowUp') {
+        if (cmdHistory.length > 0 && cmdHistoryIdx < cmdHistory.length - 1) {
+          cmdHistoryIdx++;
+          e.target.value = cmdHistory[cmdHistory.length - 1 - cmdHistoryIdx];
+        }
+      } else if (e.key === 'ArrowDown') {
+        if (cmdHistoryIdx > 0) {
+          cmdHistoryIdx--;
+          e.target.value = cmdHistory[cmdHistory.length - 1 - cmdHistoryIdx];
+        } else if (cmdHistoryIdx === 0) {
+          cmdHistoryIdx = -1;
+          e.target.value = '';
+        }
+      }
+    }
+
+    async function submitTerminalCommand() {
+      const input = document.getElementById('term-input');
+      const cmd = input.value.trim();
+      if (!cmd) return;
+
+      cmdHistory.push(cmd);
+      cmdHistoryIdx = -1;
+      input.value = '';
+
+      appendTerminal(`\n$ ${cmd}\n`);
+      setTerminalRunning(true, cmd);
+
+      try {
+        const res = await fetch('/api/terminal/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: cmd, cwd: currentDir || '~' })
+        });
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const msg = JSON.parse(line);
+              if (msg.type === 'init') {
+                currentTerminalJobId = msg.jobId;
+                setTerminalRunning(true, cmd, msg.pid);
+              } else if (msg.type === 'out' || msg.type === 'err') {
+                appendTerminal(msg.data);
+              } else if (msg.type === 'end') {
+                currentTerminalJobId = null;
+                setTerminalRunning(false);
+                if (msg.cwd) {
+                  currentDir = msg.cwd;
+                  document.getElementById('term-cwd-badge').textContent = msg.cwd.split(/[\/\\]/).pop() || '~';
+                }
+              }
+            } catch (err) {
+              appendTerminal(line + '\n');
+            }
+          }
+        }
+      } catch (e) {
+        appendTerminal(`\n[Gagal menjalankan perintah: ${e.message}]\n`);
+      } finally {
+        currentTerminalJobId = null;
+        setTerminalRunning(false);
+      }
+    }
+
+    async function killTerminalJob() {
+      if (!currentTerminalJobId) {
+        showToast('Tidak ada proses aktif yang sedang berjalan', 'info');
+        setTerminalRunning(false);
+        return;
+      }
+      try {
+        const jobId = currentTerminalJobId;
+        currentTerminalJobId = null;
+        setTerminalRunning(false);
+        await api('/api/terminal/kill', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: jobId })
+        });
+        appendTerminal('\n^C [Proses dihentikan]\n');
+        showToast('Proses terminal dihentikan', 'info');
+      } catch (e) {
+        setTerminalRunning(false);
+      }
+    }
+
+    function executeQuickCommand(cmd, autoRun = true) {
+      const input = document.getElementById('term-input');
+      if (!input) return;
+      input.value = cmd;
+      input.focus();
+      if (autoRun) {
+        if (currentTerminalJobId) {
+          sendTerminalInput();
+        } else {
+          submitTerminalCommand();
+        }
+      }
+    }
+
+    function insertTerminalKey(key) {
+      const input = document.getElementById('term-input');
+      if (!input) return;
+
+      if (key === 'ctrl-c') {
+        killTerminalJob();
+        return;
+      }
+      if (key === 'clear') {
+        clearTerminalOutput();
+        return;
+      }
+      if (key === 'up') {
+        if (cmdHistory.length > 0 && cmdHistoryIdx < cmdHistory.length - 1) {
+          cmdHistoryIdx++;
+          input.value = cmdHistory[cmdHistory.length - 1 - cmdHistoryIdx];
+        }
+        input.focus();
+        return;
+      }
+      if (key === 'down') {
+        if (cmdHistoryIdx > 0) {
+          cmdHistoryIdx--;
+          input.value = cmdHistory[cmdHistory.length - 1 - cmdHistoryIdx];
+        } else if (cmdHistoryIdx === 0) {
+          cmdHistoryIdx = -1;
+          input.value = '';
+        }
+        input.focus();
+        return;
+      }
+      if (key === 'tab') {
+        input.value += ' ';
+        input.focus();
+        return;
+      }
+
+      const start = input.selectionStart !== null ? input.selectionStart : input.value.length;
+      const end = input.selectionEnd !== null ? input.selectionEnd : input.value.length;
+      const val = input.value;
+      input.value = val.substring(0, start) + key + val.substring(end);
+      input.selectionStart = input.selectionEnd = start + key.length;
+      input.focus();
+    }
+
+    async function doDeviceAction(action) {
+      let endpoint = '';
+      let body = {};
+      if (action === 'wakelock') endpoint = '/api/device/wakelock';
+
+      if (!endpoint) return;
+      try {
+        showToast('Mengirim perintah perangkat...', 'info');
+        const res = await api(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+        if (res.ok) {
+          showToast(res.message || 'Perintah berhasil dijalankan', 'success');
+        } else {
+          showToast(res.message || 'Gagal menjalankan perintah', 'error');
+        }
+      } catch (e) {
+        showToast('Gagal: ' + e.message, 'error');
+      }
+    }
+
+    function confirmReboot() {
+      showConceptConfirm({
+        title: 'Reboot Perangkat HP',
+        messageHtml: 'Apakah Anda yakin ingin memuat ulang (reboot) smartphone fisik? Panel dan koneksi server akan terputus sementara waktu sampai HP booting kembali.',
+        actionText: 'Reboot HP',
+        onConfirm: async () => {
+          try {
+            const res = await api('/api/device/reboot', { method: 'POST' });
+            showToast(res.message || 'Perintah reboot telah dikirim ke perangkat HP', 'info');
+          } catch (e) {
+            showToast('Gagal: ' + e.message, 'error');
+          }
+        }
+      });
+    }
+
+    // Logs & PM2
+    async function fetchWebsiteLogs() {
+      try {
+        const res = await api('/api/logs/website');
+        document.getElementById('website-log-view').textContent = res.logs || '';
+      } catch (e) {}
+    }
+
+    async function clearServerLog() {
+      showConceptConfirm({
+        title: 'Bersihkan Log Server',
+        message: 'Kosongkan seluruh berkas catatan log server?',
+        actionText: 'Bersihkan Log',
+        onConfirm: async () => {
+          try {
+            await api('/api/logs/clear', { method: 'POST' });
+            showToast('Log server dibersihkan', 'info');
+            fetchWebsiteLogs();
+          } catch (e) {}
+        }
+      });
+    }
+
+    async function loadPm2Status() {
+      const container = document.getElementById('pm2-processes-container');
+      try {
+        const data = await api('/api/pm2/status');
+        if (!data.installed) {
+          container.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">${escapeHtml(data.message)}</div>`;
+          return;
+        }
+
+        if (!data.processes || data.processes.length === 0) {
+          container.innerHTML = `<div style="color:var(--text-muted);font-size:13px;">PM2 aktif, belum ada proses yang berjalan.</div>`;
+          return;
+        }
+
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        data.processes.forEach((p) => {
+          const isOnline = p.status === 'online';
+          html += `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:rgba(255,255,255,0.02);border:1px solid var(--border-color);border-radius:var(--radius-sm);flex-wrap:wrap;gap:8px;">
+              <div>
+                <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px;">
+                  <span class="status-dot" style="background:${isOnline ? '#10B981' : '#EF4444'};box-shadow:none;"></span>
+                  ${escapeHtml(p.name)} <span style="font-size:11px;color:var(--text-dim);font-family:var(--font-mono);">(PID: ${p.pid})</span>
+                </div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
+                  RAM: ${formatBytes(p.memoryBytes)} • Restarts: ${p.restarts} • Uptime: ${formatUptime(Math.floor((p.uptimeMs || 0)/1000))}
+                </div>
+              </div>
+              <div class="fm-actions">
+                <button class="btn btn-sm" onclick="showPm2Logs('${escapeHtml(p.name)}')">Log</button>
+                <button class="btn btn-sm" onclick="doPm2Action('restart', '${escapeHtml(p.name)}')">Restart</button>
+                <button class="btn btn-sm btn-danger" onclick="doPm2Action('stop', '${escapeHtml(p.name)}')">Stop</button>
+              </div>
+            </div>
+          `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+      } catch (e) {
+        container.innerHTML = `<div style="color:#F87171;font-size:13px;">Gagal memuat status PM2.</div>`;
+      }
+    }
+
+    async function doPm2Action(action, name) {
+      try {
+        const res = await api('/api/pm2/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, name })
+        });
+        showToast(res.message || 'Aksi berhasil', res.ok ? 'success' : 'error');
+        loadPm2Status();
+      } catch (e) {}
+    }
+
+    async function showPm2Logs(name) {
+      try {
+        const res = await api(`/api/pm2/logs?name=${encodeURIComponent(name)}`);
+        document.getElementById('pm2-log-title').textContent = `Log PM2: ${name}`;
+        document.getElementById('pm2-log-view').textContent = res.logs || '(log kosong)';
+        document.getElementById('pm2-log-section').style.display = 'block';
+      } catch (e) {}
+    }
+
+    function closePm2LogView() {
+      document.getElementById('pm2-log-section').style.display = 'none';
+    }
+
+    // Auto Init
+    updateStats();
+    setInterval(updateStats, 4000);
+  </script>
+  <script src="/editor.js"></script>
+  <script src="/extras.js"></script>
+</body>
+</html>
