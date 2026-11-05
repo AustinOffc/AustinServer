@@ -31,3 +31,6 @@ apps/*
 panel/cron.json
 panel/extras-config.json
 panel/*.tmp
+
+# Node.js versi tambahan (diunduh dari panel)
+runtime/

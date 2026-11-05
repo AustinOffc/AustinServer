@@ -139,6 +139,22 @@ module.exports = function createExtras(ctx) {
   }
 
   // ------------------------------------------------------------------
+  // NODE VERSION MANAGER (pilih versi Node per app / terminal)
+  // ------------------------------------------------------------------
+  const nodemgr = require('./nodemgr')({
+    BASE_DIR, sendJSON, parseJSONBody, run, newJob, jlog, finishJob,
+    appsUsingVersion: (version) => {
+      const out = [];
+      let entries = [];
+      try { entries = fs.readdirSync(APPS_DIR, { withFileTypes: true }); } catch (e) {}
+      for (const e of entries) {
+        if (e.isDirectory() && NAME_RE.test(e.name) && e.name !== '_uploads' && readMeta(e.name).nodeVersion === version) out.push(e.name);
+      }
+      return out;
+    },
+  });
+
+  // ------------------------------------------------------------------
   // KONFIGURASI (backup schedule, domain)
   // ------------------------------------------------------------------
   const defaultConfig = {
@@ -254,11 +270,24 @@ module.exports = function createExtras(ctx) {
     const list = await pm2List(true);
     const exists = list.some((p) => p.name === name);
 
-    if (exists) {
+    // Versi Node yang diminta app (kosong = Node bawaan Termux)
+    const meta = readMeta(name);
+    let ver = meta.nodeVersion || '';
+    if (ver && !nodemgr.isInstalled(ver)) {
+      say(`⚠ Node ${ver} tidak terpasang lagi, memakai Node bawaan.`);
+      ver = '';
+    }
+
+    if (exists && (meta.startedNode || '') === ver) {
       const r = await run('pm2', ['restart', name, '--update-env'], { env, timeout: 20000 });
       say(r.out.trim());
       pm2Cache.at = 0;
       return r.code === 0;
+    }
+    if (exists) {
+      // Versi Node berubah: proses PM2 harus dibuat ulang agar interpreter-nya berganti.
+      say(`↻ Versi Node berubah (${meta.startedNode || 'bawaan'} → ${ver || 'bawaan'}), membuat ulang proses PM2...`);
+      await run('pm2', ['delete', name], { timeout: 15000 });
     }
 
     const start = pickStart(name);
@@ -269,17 +298,24 @@ module.exports = function createExtras(ctx) {
 
     let args;
     if (start.kind === 'npm') {
-      args = ['start', 'npm', '--name', name, '--cwd', dir, '--', 'start'];
+      if (ver) args = ['start', path.join(nodemgr.shimDir(ver), 'npm'), '--name', name, '--cwd', dir, '--interpreter', 'bash', '--', 'start'];
+      else args = ['start', 'npm', '--name', name, '--cwd', dir, '--', 'start'];
     } else {
       args = ['start', start.file, '--name', name, '--cwd', dir];
       if (/\.py$/i.test(start.file)) args.push('--interpreter', 'python3');
       else if (/\.sh$/i.test(start.file)) args.push('--interpreter', 'bash');
+      else if (ver) args.push('--interpreter', path.join(nodemgr.shimDir(ver), 'node'));
     }
     say(`$ pm2 ${args.join(' ')}`);
     const r = await run('pm2', args, { env, cwd: dir, timeout: 30000 });
     say(r.out.trim());
     await run('pm2', ['save'], { timeout: 10000 });
     pm2Cache.at = 0;
+    if (r.code === 0) {
+      const mm = readMeta(name);
+      mm.startedNode = ver;
+      writeMeta(name, mm);
+    }
     return r.code === 0;
   }
 
@@ -297,6 +333,7 @@ module.exports = function createExtras(ctx) {
         name: e.name,
         port: meta.port || null,
         startFile: meta.startFile || '',
+        nodeVersion: meta.nodeVersion || '',
         createdAt: meta.createdAt || null,
         hasPackage: fs.existsSync(path.join(appDir(e.name), 'package.json')),
         hasEnv: fs.existsSync(path.join(appDir(e.name), '.env')),
@@ -321,15 +358,19 @@ module.exports = function createExtras(ctx) {
     return root;
   }
 
-  async function npmInstall(dir, onData) {
+  async function npmInstall(dir, onData, version) {
     const opts = { cwd: dir, timeout: 15 * 60 * 1000, onData };
-    let r = await run('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], opts);
-    if (r.code !== 0) r = await run('npm', ['install', '--production', '--no-audit', '--no-fund'], opts);
+    const t = nodemgr.toolCmd(version, 'npm', ['install', '--omit=dev', '--no-audit', '--no-fund']);
+    let r = await run(t.cmd, t.args, opts);
+    if (r.code !== 0) {
+      const t2 = nodemgr.toolCmd(version, 'npm', ['install', '--production', '--no-audit', '--no-fund']);
+      r = await run(t2.cmd, t2.args, opts);
+    }
     return r;
   }
 
   async function deployApp(job, opts) {
-    const { name, zipPath, startFile, port, overwrite } = opts;
+    const { name, zipPath, startFile, port, overwrite, nodeVersion } = opts;
     const dir = appDir(name);
     const tmp = path.join(APPS_DIR, `.tmp-${job.id}`);
     try {
@@ -359,13 +400,17 @@ module.exports = function createExtras(ctx) {
       writeMeta(name, {
         startFile: startFile || prev.startFile || '',
         port: port || prev.port || null,
+        nodeVersion: nodeVersion !== undefined ? nodeVersion : (prev.nodeVersion || ''),
+        startedNode: prev.startedNode || '',
         createdAt: prev.createdAt || Date.now(),
         updatedAt: Date.now(),
       });
 
       if (fs.existsSync(path.join(dir, 'package.json'))) {
         jlog(job, '[2/4] npm install (bisa beberapa menit)...');
-        const npm = await npmInstall(dir, (s) => jlog(job, s.trimEnd()));
+        const nv = readMeta(name).nodeVersion || '';
+        if (nv) jlog(job, `    (memakai Node ${nv} via PRoot)`);
+        const npm = await npmInstall(dir, (s) => jlog(job, s.trimEnd()), nv);
         if (npm.code !== 0) {
           finishJob(job, false, '✗ npm install gagal.');
           return;
@@ -456,7 +501,7 @@ module.exports = function createExtras(ctx) {
       const d = appDir(n);
       if (fs.existsSync(path.join(d, 'package.json')) && !fs.existsSync(path.join(d, 'node_modules'))) {
         jlog(job, `npm install untuk ${n}...`);
-        await npmInstall(d);
+        await npmInstall(d, undefined, readMeta(n).nodeVersion || '');
       }
     }
     finishJob(job, true, 'Selesai. Restart app dari tab Apps bila perlu.');
@@ -574,7 +619,7 @@ module.exports = function createExtras(ctx) {
     let child;
     try {
       child = spawn(isWin ? 'cmd' : 'sh', isWin ? ['/c', job.command] : ['-c', job.command], {
-        cwd, env: process.env, stdio: ['ignore', 'pipe', 'pipe'],
+        cwd, env: nodemgr.shellEnv(process.env), stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (e) {
       cronRunning.delete(id);
@@ -978,6 +1023,9 @@ module.exports = function createExtras(ctx) {
 
     const fail = (code, message) => sendJSON(res, code, { ok: false, message });
 
+    // ---- NODE VERSION MANAGER ----
+    if (pathname.startsWith('/api/node/') && (await nodemgr.handle(req, res, pathname))) return true;
+
     // ---- JOB ----
     if (m === 'GET' && pathname === '/api/ext/job') {
       const j = jobs.get(q.get('id'));
@@ -1013,8 +1061,10 @@ module.exports = function createExtras(ctx) {
         if (startFile && (path.isAbsolute(startFile) || startFile.split(/[\\/]/).includes('..'))) { fail(400, 'File start tidak valid.'); return true; }
         let port = b.port ? parseInt(b.port, 10) : null;
         if (b.port && !(port >= 1 && port <= 65535)) { fail(400, 'Port tidak valid.'); return true; }
+        const nodeVersion = String(b.nodeVersion || '');
+        if (nodeVersion && !nodemgr.isInstalled(nodeVersion)) { fail(400, `Node ${nodeVersion} belum terpasang.`); return true; }
         const job = newJob(`Deploy ${name}`);
-        deployApp(job, { name, zipPath, startFile, port, overwrite: !!b.overwrite });
+        deployApp(job, { name, zipPath, startFile, port, overwrite: !!b.overwrite, nodeVersion });
         sendJSON(res, 200, { ok: true, jobId: job.id });
       } catch (e) { fail(400, e.message); }
       return true;
@@ -1066,8 +1116,40 @@ module.exports = function createExtras(ctx) {
           if (b.port && !(p >= 1 && p <= 65535)) { fail(400, 'Port tidak valid.'); return true; }
           meta.port = p;
         }
+        let changedNode = false;
+        if (b.nodeVersion !== undefined) {
+          const nv = String(b.nodeVersion || '');
+          if (nv && !nodemgr.isInstalled(nv)) { fail(400, `Node ${nv} belum terpasang.`); return true; }
+          changedNode = (meta.nodeVersion || '') !== nv;
+          meta.nodeVersion = nv;
+        }
         writeMeta(name, meta);
-        sendJSON(res, 200, { ok: true, message: 'Pengaturan app disimpan.' });
+        if (changedNode && b.reinstall && fs.existsSync(path.join(appDir(name), 'package.json'))) {
+          // node_modules lama (native addon) tidak kompatibel antar versi/runtime: pasang ulang.
+          const job = newJob(`Pasang ulang dependensi ${name}`);
+          (async () => {
+            try {
+              const d = appDir(name);
+              const wasRunning = (await pm2List(true)).some((p) => p.name === name && p.pm2_env && p.pm2_env.status === 'online');
+              jlog(job, `▶ Node ${meta.nodeVersion || 'bawaan'} untuk "${name}"`);
+              jlog(job, '[1/3] Menghapus node_modules lama...');
+              fs.rmSync(path.join(d, 'node_modules'), { recursive: true, force: true });
+              jlog(job, '[2/3] npm install (bisa beberapa menit)...');
+              const r = await npmInstall(d, (s) => jlog(job, s.trimEnd()), meta.nodeVersion || '');
+              if (r.code !== 0) { finishJob(job, false, '✗ npm install gagal.'); return; }
+              if (wasRunning) {
+                jlog(job, '[3/3] Restart app dengan versi baru...');
+                const ok = await startApp(name, job);
+                finishJob(job, ok, ok ? `✓ "${name}" berjalan di Node ${meta.nodeVersion || 'bawaan'}.` : '✗ Gagal menjalankan app.');
+              } else {
+                finishJob(job, true, '✓ Dependensi terpasang. Tekan Start untuk menjalankan app.');
+              }
+            } catch (e) { finishJob(job, false, '✗ Error: ' + e.message); }
+          })();
+          sendJSON(res, 200, { ok: true, message: 'Pengaturan app disimpan.', jobId: job.id });
+          return true;
+        }
+        sendJSON(res, 200, { ok: true, message: changedNode ? 'Tersimpan. Pasang ulang dependensi (npm install) lalu restart app agar versi baru dipakai.' : 'Pengaturan app disimpan.' });
       } catch (e) { fail(500, e.message); }
       return true;
     }
@@ -1337,5 +1419,5 @@ module.exports = function createExtras(ctx) {
     return false;
   }
 
-  return { handle, handlePublic };
+  return { handle, handlePublic, shellEnv: nodemgr.shellEnv };
 };

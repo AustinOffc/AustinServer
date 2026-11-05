@@ -177,6 +177,7 @@
     '<div><label class="form-label">Nama app</label><input class="form-input" id="xa-name" placeholder="bot-toko" maxlength="40" autocapitalize="off"></div>' +
     '<div><label class="form-label">File start (opsional)</label><input class="form-input" id="xa-start" placeholder="index.js" autocapitalize="off"></div>' +
     '<div><label class="form-label">Port (opsional)</label><input class="form-input" id="xa-port" type="number" min="1" max="65535" placeholder="3000"></div>' +
+    '<div><label class="form-label">Versi Node</label><select class="form-input" id="xa-node"><option value="">Bawaan Termux</option></select></div>' +
     '</div>' +
     '<label class="form-label">File ZIP project</label>' +
     '<div class="xt-inline"><input class="form-input" id="xa-zip" type="file" accept=".zip"></div>' +
@@ -207,8 +208,26 @@
 
   var appsCache = [];
   var appsDir = '';
+  var nodeInfo = { installed: [] };
+
+  function nodeOptions(selected) {
+    return '<option value="">Bawaan Termux' + (nodeInfo.system ? ' (' + esc(nodeInfo.system.version) + ')' : '') + '</option>' +
+      nodeInfo.installed.map(function (n) {
+        return '<option value="' + esc(n.version) + '"' + (n.version === selected ? ' selected' : '') + '>Node ' + esc(n.version.slice(1)) + '</option>';
+      }).join('');
+  }
+
+  function loadNodeInfo(cb) {
+    jget('/api/node/info').then(function (r) {
+      if (r && r.ok) nodeInfo = r;
+      var sel = $('#xa-node');
+      if (sel) { var cur = sel.value; sel.innerHTML = nodeOptions(cur); }
+      if (cb) cb(nodeInfo);
+    }).catch(function () { if (cb) cb(nodeInfo); });
+  }
 
   function loadApps() {
+    loadNodeInfo();
     jget('/api/apps/list').then(function (r) {
       if (!r.ok) return;
       appsCache = r.apps;
@@ -221,7 +240,7 @@
           var badge = a.running ? '<span class="xt-badge ok">● online</span>'
             : a.status === 'belum jalan' ? '<span class="xt-badge">belum jalan</span>'
             : '<span class="xt-badge bad">● ' + esc(a.status) + '</span>';
-          var sub = [a.port ? 'port ' + a.port : null, a.running ? fmtBytes(a.memory) : null, a.running ? 'up ' + fmtUptime(a.uptime) : null, a.restarts ? a.restarts + '× restart' : null, a.hasEnv ? '.env' : null]
+          var sub = [a.nodeVersion ? 'Node ' + a.nodeVersion.slice(1) : null, a.port ? 'port ' + a.port : null, a.running ? fmtBytes(a.memory) : null, a.running ? 'up ' + fmtUptime(a.uptime) : null, a.restarts ? a.restarts + '× restart' : null, a.hasEnv ? '.env' : null]
             .filter(Boolean).join(' • ');
           var n = esc(a.name);
           return '<div class="xt-row"><div class="xt-grow"><div class="xt-name">' + n + ' ' + badge + '</div><div class="xt-sub">' + (sub || '-') + '</div></div>' +
@@ -333,12 +352,22 @@
     var m = makeModal('xt-cfg', 'Pengaturan — ' + name,
       '<div class="form-group"><label class="form-label">File start (kosong = otomatis dari package.json / index.js)</label><input class="form-input" id="xt-cfg-start" value="' + esc(a.startFile || '') + '" autocapitalize="off"></div>' +
       '<div class="form-group"><label class="form-label">Port (diteruskan sebagai variabel PORT)</label><input class="form-input" id="xt-cfg-port" type="number" value="' + esc(a.port || '') + '"></div>' +
+      '<div class="form-group"><label class="form-label">Versi Node.js</label><select class="form-input" id="xt-cfg-node">' + nodeOptions(a.nodeVersion || '') + '</select>' +
+      '<label class="xt-check" style="margin-top:8px;"><input type="checkbox" id="xt-cfg-reinstall" checked> Pasang ulang dependensi (npm install) &amp; restart bila versi berubah</label>' +
+      '<div class="xt-hint">Pasang versi lain di tab Sistem → Node.js. Node selain bawaan jalan di PRoot Ubuntu, jadi tool Termux (ffmpeg, dll) tidak terlihat oleh app itu.</div></div>' +
       '<div class="xt-hint">Berlaku saat app dijalankan ulang. Untuk menerapkan file start baru, hapus dari PM2 lalu Start lagi.</div>',
       '<button class="btn btn-sm" onclick="xtClose(\'xt-cfg\')">Batal</button><button class="btn btn-sm btn-primary" id="xt-cfg-ok">Simpan</button>');
     $('#xt-cfg-ok', m).onclick = function () {
-      jpost('/api/apps/meta', { name: name, startFile: $('#xt-cfg-start', m).value, port: $('#xt-cfg-port', m).value }).then(function (r) {
+      jpost('/api/apps/meta', {
+        name: name, startFile: $('#xt-cfg-start', m).value, port: $('#xt-cfg-port', m).value,
+        nodeVersion: $('#xt-cfg-node', m).value, reinstall: $('#xt-cfg-reinstall', m).checked
+      }).then(function (r) {
         toast(r.message, r.ok ? 'success' : 'error');
-        if (r.ok) { closeX('xt-cfg'); loadApps(); }
+        if (r.ok) {
+          closeX('xt-cfg');
+          if (r.jobId) showJob(r.jobId, 'Ganti versi Node — ' + name, function () { loadApps(); });
+          else loadApps();
+        }
       });
     };
   }
@@ -360,7 +389,7 @@
       if (!up.ok) throw new Error(up.message || 'Upload gagal');
       return jpost('/api/apps/deploy', {
         name: name, zipPath: up.zipPath, startFile: $('#xa-start').value.trim(),
-        port: $('#xa-port').value, overwrite: $('#xa-overwrite').checked
+        port: $('#xa-port').value, overwrite: $('#xa-overwrite').checked, nodeVersion: $('#xa-node').value
       });
     }).then(function (r) {
       if (!r.ok) throw new Error(r.message || 'Deploy gagal');
@@ -570,6 +599,18 @@
     '<div class="xt-hint">URL trycloudflare berubah setiap tunnel dihubungkan ulang. Untuk domain tetap, pakai Named Tunnel dan tempel config yang dihasilkan ke <code>~/.cloudflared/config.yml</code>.</div>' +
     '</div></div>' +
 
+    '<div class="log-card">' + cardHead('Node.js', '#22C55E', '<button class="btn btn-sm btn-action-blue" id="xn-refresh">Refresh</button>') +
+    '<div class="xt-pad"><div class="xt-hint" style="margin:0 0 10px;" id="xn-sys">Memuat...</div>' +
+    '<div id="xn-warn" class="xt-hint" style="color:#F59E0B;display:none;"></div>' +
+    '<div id="xn-list"></div>' +
+    '<div class="xt-sep"></div><div class="form-label">Pasang versi baru</div>' +
+    '<div class="xt-inline"><select class="form-input" id="xn-major" style="flex:1 1 120px;"></select>' +
+    '<label class="xt-check"><input type="checkbox" id="xn-act" checked> Aktifkan untuk Terminal</label>' +
+    '<button class="btn btn-primary btn-sm" id="xn-install">Pasang</button></div>' +
+    '<div class="xt-hint">Diunduh dari nodejs.org (versi terbaru seri itu) dan dijalankan lewat PRoot Ubuntu. ' +
+    '"Aktif untuk Terminal" mengubah <code>node</code>/<code>npm</code> di Terminal &amp; Cron; panel, PM2 dan app lain tetap Node bawaan kecuali dipilih per app (tab Apps → Atur).</div>' +
+    '</div></div>' +
+
     '<div class="log-card">' + cardHead('Port Terbuka', '#F59E0B', '<button class="btn btn-sm btn-action-amber" id="xs-ports-refresh">Refresh</button>') +
     '<div id="xs-ports"><div class="xt-empty">Memuat...</div></div></div>' +
 
@@ -716,6 +757,45 @@
         '<button class="btn btn-sm" onclick="xtClose(\'xt-yaml\')">Tutup</button><button class="btn btn-sm btn-primary" id="xt-yaml-copy">Salin</button>', true);
       $('#xt-yaml-copy', m).onclick = function () { window.copyToClipboard(y).then(function () { toast('Config disalin', 'success'); }).catch(function () {}); };
     };
+    function renderNode() {
+      loadNodeInfo(function (n) {
+        $('#xn-sys', sec).innerHTML = 'Bawaan Termux: <span class="xt-ver">' + esc(n.system ? n.system.version : '-') + '</span>' +
+          (n.active ? ' • Terminal memakai <span class="xt-ver">' + esc(n.active) + '</span>' : ' • Terminal memakai bawaan');
+        var w = $('#xn-warn', sec);
+        w.style.display = n.supported ? 'none' : 'block';
+        w.textContent = n.supported ? '' : '⚠ ' + (n.reason || 'Tidak didukung.');
+        $('#xn-install', sec).disabled = !n.supported;
+        var ms = $('#xn-major', sec);
+        if (!ms.options.length) ms.innerHTML = (n.majors || []).slice().reverse().map(function (x) { return '<option value="' + x + '"' + (x === 22 ? ' selected' : '') + '>Node ' + x + '.x</option>'; }).join('');
+        $('#xn-list', sec).innerHTML = n.installed.length ? n.installed.map(function (x) {
+          var v = esc(x.version);
+          return '<div class="xt-row"><div class="xt-grow"><div class="xt-name">Node ' + v + ' ' + (x.active ? '<span class="xt-badge ok">● aktif di terminal</span>' : '') + '</div>' +
+            '<div class="xt-sub">' + (x.apps.length ? 'dipakai: ' + esc(x.apps.join(', ')) : 'belum dipakai app') + '</div></div>' +
+            '<div class="xt-btns"><button class="btn" data-nv="' + (x.active ? 'off' : 'on') + '" data-v="' + v + '">' + (x.active ? 'Nonaktifkan' : 'Aktifkan') + '</button>' +
+            '<button class="btn btn-action-red" data-nv="rm" data-v="' + v + '">Hapus</button></div></div>';
+        }).join('') : '<div class="xt-empty">Belum ada versi tambahan terpasang.</div>';
+      });
+    }
+    window.xnRender = renderNode;
+    $('#xn-refresh', sec).onclick = renderNode;
+    $('#xn-install', sec).onclick = function () {
+      jpost('/api/node/install', { major: $('#xn-major', sec).value, activate: $('#xn-act', sec).checked }).then(function (r) {
+        if (!r.ok) { toast(r.message, 'error'); return; }
+        showJob(r.jobId, 'Pasang Node ' + $('#xn-major', sec).value, function () { renderNode(); });
+      });
+    };
+    $('#xn-list', sec).addEventListener('click', function (e) {
+      var b = e.target.closest('button[data-nv]');
+      if (!b) return;
+      var v = b.getAttribute('data-v'), act = b.getAttribute('data-nv');
+      if (act === 'rm') {
+        confirmBox('Hapus Node', 'Hapus Node ' + v + ' dari perangkat?', 'Hapus', function () {
+          jpost('/api/node/remove', { version: v }).then(function (r) { toast(r.message, r.ok ? 'success' : 'error'); renderNode(); });
+        });
+      } else {
+        jpost('/api/node/activate', { version: act === 'on' ? v : '' }).then(function (r) { toast(r.message, r.ok ? 'success' : 'error'); renderNode(); });
+      }
+    });
     $('#xs-pwa-install', sec).onclick = function () {
       if (!deferredInstall) return;
       deferredInstall.prompt();
@@ -849,6 +929,7 @@
         jget('/api/ext/version').then(function (r) { $('#xs-local').textContent = r.version; }).catch(function () {});
         loadPorts();
         pwaState();
+        if (window.xnRender) window.xnRender();
       }
       if (id === 'tab-services' && window.xlInit) window.xlInit();
       var ab = $('.tab-btn.active');

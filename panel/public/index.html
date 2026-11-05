@@ -2279,6 +2279,8 @@
             </div>
           </div>
 
+          <pre id="vps-error-box" style="display:none;margin:8px 0 0;padding:8px 10px;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.5;color:#FCA5A5;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:6px;max-height:140px;overflow:auto;"></pre>
+
           <div class="remote-actions-bar">
             <button class="btn btn-sm" id="btn-vps-start" onclick="doVpsAction('start')" style="background: rgba(16, 185, 129, 0.15); color: #34D399; border-color: rgba(16, 185, 129, 0.3); display: none;">
               <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -3193,15 +3195,36 @@
         Secret.set('ssh-pub', vpsCmd);
 
         const vpsBadgeEl = document.getElementById('vps-tunnel-badge');
+        const vpsErrEl = document.getElementById('vps-error-box');
+        const vpsStarting = !!(data.vps && data.vps.starting);
+        const vpsLastError = (data.vps && data.vps.lastError) || '';
         if (vpsBadgeEl) {
           if (vpsCmd) {
             vpsBadgeEl.textContent = 'Public Tunnel (Aktif)';
             vpsBadgeEl.style.color = '#34D399';
             vpsBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
+          } else if (!isVpsRunning && vpsLastError) {
+            // VPS-nya sendiri gagal nyala: jangan pura-pura "menghubungkan"
+            vpsBadgeEl.textContent = 'VPS gagal nyala';
+            vpsBadgeEl.style.color = '#F87171';
+            vpsBadgeEl.style.background = 'rgba(239, 68, 68, 0.15)';
+          } else if (!isVpsRunning) {
+            vpsBadgeEl.textContent = vpsStarting ? 'Menyalakan VPS...' : 'Menunggu VPS';
+            vpsBadgeEl.style.color = '#FBBF24';
+            vpsBadgeEl.style.background = 'rgba(245, 158, 11, 0.15)';
           } else {
             vpsBadgeEl.textContent = 'Menghubungkan...';
             vpsBadgeEl.style.color = '#93C5FD';
             vpsBadgeEl.style.background = 'rgba(59, 130, 246, 0.15)';
+          }
+        }
+        if (vpsErrEl) {
+          if (!isVpsRunning && vpsLastError) {
+            vpsErrEl.textContent = vpsLastError;
+            vpsErrEl.style.display = 'block';
+          } else {
+            vpsErrEl.style.display = 'none';
+            vpsErrEl.textContent = '';
           }
         }
 
@@ -3304,7 +3327,31 @@
         const res = await api(`/api/vps/${action}`, { method: 'POST' });
         showToast(res.message || 'Berhasil', res.ok ? 'success' : 'error');
         updateStats();
+        if (res.ok && (action === 'start' || action === 'restart')) pollVpsStart();
       } catch (e) {}
+    }
+
+    // Setelah Mulai/Restart: pantau sampai VPS benar-benar aktif atau gagal,
+    // lalu beri tahu hasilnya (bukan cuma "sedang dijalankan").
+    let vpsPollTimer = null;
+    function pollVpsStart() {
+      clearInterval(vpsPollTimer);
+      let n = 0;
+      vpsPollTimer = setInterval(async () => {
+        n++;
+        try {
+          const s = await api('/api/vps/status');
+          updateStats();
+          if (s && s.running) {
+            clearInterval(vpsPollTimer);
+            showToast('VPS aktif di port 2222.', 'success');
+          } else if (s && !s.starting && s.lastError) {
+            clearInterval(vpsPollTimer);
+            showToast('VPS gagal nyala. Lihat alasan di kartu VPS.', 'error');
+          }
+        } catch (e) {}
+        if (n >= 60) clearInterval(vpsPollTimer);
+      }, 2500);
     }
 
     function confirmVpsStop() {

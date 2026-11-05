@@ -12,7 +12,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { spawn, exec, execSync } = require('child_process');
+const { spawn, exec, execSync, execFileSync } = require('child_process');
 const crypto = require('crypto');
 const net = require('net');
 
@@ -897,6 +897,8 @@ function getSystemStats() {
     services: [],
     vps: Object.assign({}, vpsConfig, {
       running: lastVpsRunningState,
+      starting: vpsLaunching,
+      lastError: vpsLastError,
     }),
   };
 }
@@ -950,15 +952,57 @@ setInterval(checkVpsListeningAsync, 8000);
 checkVpsListeningAsync();
 
 let vpsLaunching = false;
+let vpsLastError = null; // alasan terakhir VPS gagal nyala (ditampilkan di dashboard)
 
-function launchVpsProcess() {
+// Ambil beberapa baris terakhir dari sebuah log (untuk diagnosa)
+function tailFile(file, maxChars) {
+  try {
+    const stat = fs.statSync(file);
+    const len = Math.min(stat.size, maxChars || 1500);
+    const buf = Buffer.alloc(len);
+    const fd = fs.openSync(file, 'r');
+    fs.readSync(fd, buf, 0, len, stat.size - len);
+    fs.closeSync(fd);
+    // buang escape warna ANSI & baris kosong
+    return buf.toString('utf8')
+      .replace(/\x1b\[[0-9;]*m/g, '')
+      .split('\n').map((l) => l.trim()).filter(Boolean).slice(-8).join('\n');
+  } catch (e) { return ''; }
+}
+
+// Jalankan `start.sh vps`. Output TIDAK dibuang lagi: disimpan ke logs/vps-launch.log
+// dan `onExit(code, tail)` dipanggil saat skrip selesai.
+function launchVpsProcess(onExit) {
   const startScript = path.join(BASE_DIR, 'start.sh');
-  const child = spawn('bash', [startScript, 'vps'], {
-    detached: true,
-    stdio: 'ignore',
-    env: Object.assign({}, process.env, { PATH: ANDROID_PATH }),
-  });
-  child.on('error', () => {});
+  const launchLog = path.join(LOG_DIR, 'vps-launch.log');
+  let outFd = 'ignore';
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    outFd = fs.openSync(launchLog, 'w');
+  } catch (e) {}
+
+  let child;
+  try {
+    child = spawn('bash', [startScript, 'vps'], {
+      detached: true,
+      stdio: ['ignore', outFd, outFd],
+      env: Object.assign({}, process.env, { PATH: ANDROID_PATH }),
+    });
+  } catch (e) {
+    if (typeof outFd === 'number') { try { fs.closeSync(outFd); } catch (e2) {} }
+    if (onExit) onExit(-1, 'Tidak bisa menjalankan bash: ' + e.message);
+    return;
+  }
+  if (typeof outFd === 'number') { try { fs.closeSync(outFd); } catch (e) {} }
+
+  let done = false;
+  const finish = (code, extra) => {
+    if (done) return;
+    done = true;
+    if (onExit) onExit(code, extra || tailFile(launchLog, 1500));
+  };
+  child.on('error', (e) => finish(-1, 'Tidak bisa menjalankan bash: ' + e.message));
+  child.on('exit', (code) => finish(code));
   child.unref();
 }
 
@@ -968,27 +1012,55 @@ function startVpsService(opts) {
     if (manual) saveVpsConfig({ manualStop: false });
     if (vpsLaunching) return { ok: true, message: 'Service SSH VPS sedang dijalankan.' };
     vpsLaunching = true;
-    launchVpsProcess();
+    vpsLastError = null;
 
-    // Tunggu sshd siap (proot butuh beberapa detik), baru nyalakan tunnel publik.
+    let scriptDone = false;
+    let scriptCode = null;
+    let scriptTail = '';
+    launchVpsProcess((code, tail) => {
+      scriptDone = true;
+      scriptCode = code;
+      scriptTail = tail;
+    });
+
+    // Tunggu sshd siap, baru nyalakan tunnel publik. Batas 100 detik karena
+    // start pertama (memasang openssh / membuat host key) bisa lama.
     let tries = 0;
     const waitReady = async () => {
       tries++;
       const running = await checkVpsListeningAsync();
       if (running) {
         vpsLaunching = false;
+        vpsLastError = null;
         startVpsTunnel();
         return;
       }
-      if (tries >= 15) { vpsLaunching = false; return; }
+      // Skrip sudah selesai tapi port tetap mati = gagal; tidak perlu menunggu lagi
+      const failed = (scriptDone && scriptCode !== 0) || tries >= 50;
+      if (failed) {
+        vpsLaunching = false;
+        const logTail = tailFile(path.join(LOG_DIR, 'vps.log'), 1500);
+        vpsLastError = (scriptTail || logTail || 'sshd tidak membuka port ' + (vpsConfig.port || 2222) + '. Tidak ada log.')
+          .split('\n').slice(-6).join('\n');
+        console.log('[VPS] Gagal menyalakan VPS:\n' + vpsLastError);
+        return;
+      }
       setTimeout(waitReady, 2000);
     };
     setTimeout(waitReady, 2000);
     return { ok: true, message: 'Service SSH VPS sedang dijalankan.' };
   } catch (e) {
     vpsLaunching = false;
+    vpsLastError = 'Gagal menjalankan VPS: ' + e.message;
     return { ok: false, message: 'Gagal menjalankan VPS: ' + e.message };
   }
+}
+
+function killByPattern(pattern, signal) {
+  try {
+    // pkill dijalankan langsung (tanpa shell perantara) agar tidak membunuh diri sendiri
+    execFileSync('pkill', [signal || '-9', '-f', pattern], { stdio: 'ignore', timeout: 3000 });
+  } catch (e) { /* kode 1 = tidak ada proses cocok; itu normal */ }
 }
 
 function stopVpsService() {
@@ -1002,11 +1074,17 @@ function stopVpsService() {
     saveVpsConfig({ publicHost: null, publicPort: null, publicCommand: null });
 
     if (os.platform() !== 'win32') {
-      execSync('pkill -9 -f "tcp@free.pinggy.io" 2>/dev/null || true');
-      execSync('pkill -9 -f "sshd -p 2222" 2>/dev/null || pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true');
+      // Pola ditulis "[x]..." supaya pkill TIDAK mencocokkan shell `sh -c` miliknya
+      // sendiri (yang cmdline-nya memuat pola ini) -- sebelumnya shell itu ikut
+      // terbunuh dan sshd tidak pernah benar-benar dimatikan.
+      killByPattern('[t]cp@free.pinggy.io');
+      killByPattern('[s]shd -D -e -p 2222');
+      killByPattern('[s]shd -p 2222');
+      killByPattern('[/]usr/sbin/sshd');
     }
     vpsLaunching = false;
     lastVpsRunningState = false;
+    vpsLastError = null;
     return { ok: true, message: 'Service SSH VPS berhasil dihentikan.' };
   } catch (e) {
     return { ok: false, message: 'Gagal menghentikan VPS: ' + e.message };
@@ -1356,9 +1434,7 @@ async function startVpsTunnel() {
   }
 
   if (os.platform() !== 'win32') {
-    try {
-      execSync('pkill -f "tcp@free.pinggy.io" 2>/dev/null || true');
-    } catch (e) {}
+    killByPattern('[t]cp@free.pinggy.io', '-TERM');
   }
 
   const sshCmd = 'ssh';
@@ -1956,7 +2032,13 @@ const server = http.createServer(async (req, res) => {
 
   // VPS Controls
   if (req.method === 'GET' && pathname === '/api/vps/status') {
-    sendJSON(res, 200, { ok: true, running: lastVpsRunningState, vps: vpsConfig });
+    sendJSON(res, 200, {
+      ok: true,
+      running: lastVpsRunningState,
+      starting: vpsLaunching,
+      lastError: vpsLastError,
+      vps: vpsConfig,
+    });
     return;
   }
 
@@ -2257,7 +2339,7 @@ const server = http.createServer(async (req, res) => {
 
       const child = spawn(shell, shellArgs, {
         cwd: targetCwd,
-        env: termEnv,
+        env: extras.shellEnv(termEnv),
         detached: !isWin,
       });
 
@@ -2405,7 +2487,7 @@ const server = http.createServer(async (req, res) => {
 
       const child = spawn(shell, shellArgs, {
         cwd: targetCwd,
-        env: process.env,
+        env: extras.shellEnv(process.env),
         timeout: 600000,
       });
 

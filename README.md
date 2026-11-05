@@ -230,3 +230,15 @@ Perkiraan pemakaian saat idle: panel sekitar 25–45 MB RAM, VPS Ubuntu sekitar 
 ## Kredit
 
 Dikembangkan dan dirawat oleh **Austin**. Berlisensi MIT, silakan dipakai dan dimodifikasi.
+
+---
+
+## Ganti versi Node.js
+
+Node bawaan Termux (`pkg install nodejs`) bisa terlalu baru untuk beberapa paket (mis. 9router butuh Node 22). Dari panel:
+
+1. Buka tab **Sistem → Node.js**, pilih versi (mis. 22.x), klik **Pasang**. Binary resmi diunduh dari nodejs.org, diverifikasi SHA-256, dan dijalankan lewat PRoot Ubuntu.
+2. **Terminal & Cron**: centang *Aktifkan untuk Terminal* (atau tombol Aktifkan di daftar), lalu `node -v` / `npm i -g ...` memakai versi itu. `pm2` tetap memakai Node bawaan.
+3. **Per app**: tab **Apps → Atur → Versi Node.js**. Dependensi dipasang ulang otomatis dan proses PM2 dibuat ulang.
+
+Catatan: app yang berjalan di Node tambahan hidup di lingkungan Ubuntu, jadi tool Termux (ffmpeg, imagemagick, dll) tidak terlihat; pasang lewat `apt` di Ubuntu bila perlu.

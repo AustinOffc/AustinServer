@@ -91,7 +91,41 @@ is_port_active() {
     return 1
 }
 
-# Jalankan perintah di dalam Ubuntu (proot) tanpa mengganggu shell utama
+VPS_LOCK="$LOG_DIR/vps-start.lock"
+
+# Catat pesan ke vps.log (dibaca panel untuk menampilkan alasan VPS gagal nyala)
+vps_log() {
+    echo "[$(date '+%F %T')] $*" >> "$VPS_LOG" 2>/dev/null || true
+}
+
+# Kunci agar hanya ada SATU proses start VPS pada satu waktu. Tanpa ini, panel
+# (tombol Mulai) dan watchdog bisa menjalankan start.sh bersamaan: yang satu
+# mematikan sshd yang sedang dinyalakan yang lain, atau merusak apt yang sedang
+# memasang openssh-server.
+acquire_vps_lock() {
+    if mkdir "$VPS_LOCK" 2>/dev/null; then
+        echo $$ > "$VPS_LOCK/pid"
+        return 0
+    fi
+    local old
+    old=$(cat "$VPS_LOCK/pid" 2>/dev/null)
+    # Lock basi: proses pemegangnya sudah mati, atau umurnya lebih dari 15 menit
+    if { [ -n "$old" ] && ! kill -0 "$old" 2>/dev/null; } || [ -n "$(find "$VPS_LOCK" -maxdepth 0 -mmin +15 2>/dev/null)" ]; then
+        rm -rf "$VPS_LOCK"
+        if mkdir "$VPS_LOCK" 2>/dev/null; then
+            echo $$ > "$VPS_LOCK/pid"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+release_vps_lock() {
+    rm -rf "$VPS_LOCK" 2>/dev/null || true
+}
+
+# Jalankan perintah di dalam Ubuntu (proot) tanpa mengganggu shell utama.
+# Output dicatat ke vps.log (bukan dibuang) supaya kegagalan bisa dilacak.
 run_in_ubuntu() {
     (
         unset LD_PRELOAD
@@ -102,7 +136,7 @@ run_in_ubuntu() {
             /usr/bin/env -i HOME=/root \
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             /bin/bash -c "$1"
-    ) >/dev/null 2>&1
+    ) >> "$VPS_LOG" 2>&1
 }
 
 # Pastikan sshd siap jalan: binary, user privsep, host key, dan folder runtime
@@ -144,14 +178,48 @@ start_vps() {
         return 0
     fi
 
+    # Hanya satu proses start pada satu waktu
+    if ! acquire_vps_lock; then
+        echo -e "${YELLOW}>> Proses start VPS lain sedang berjalan, menunggu hasilnya...${NC}"
+        local w
+        for w in $(seq 1 90); do
+            sleep 1
+            is_port_active 2222 && { echo -e "${GREEN}✓ VPS OpenSSH aktif (Port 2222).${NC}"; return 0; }
+            [ -d "$VPS_LOCK" ] || break
+        done
+        is_port_active 2222 && return 0
+        vps_log "Menunggu proses start VPS lain, tapi port 2222 tetap belum aktif."
+        return 1
+    fi
+
+    _start_vps_locked
+    local rc=$?
+    release_vps_lock
+    return $rc
+}
+
+_start_vps_locked() {
+    vps_log "===== Mulai menyalakan VPS (UBUNTU_DIR=$UBUNTU_DIR, HOME=$HOME) ====="
     echo -e "${YELLOW}>> Menjalankan OpenSSH Server di dalam Ubuntu VPS (Port 2222)...${NC}"
+
+    if [ ! -d "$UBUNTU_DIR" ]; then
+        vps_log "GAGAL: folder Ubuntu tidak ditemukan di $UBUNTU_DIR (jalankan 'bash install.sh' lagi)."
+    elif ! command -v proot >/dev/null 2>&1; then
+        vps_log "GAGAL: perintah 'proot' tidak ditemukan di PATH. Pasang dengan: pkg install proot"
+    fi
+
     if [ -d "$UBUNTU_DIR" ] && command -v proot >/dev/null 2>&1; then
         # Matikan sshd lama saja (jangan pkill pola "sshd" yang terlalu luas)
-        pkill -9 -f "sshd -p 2222" 2>/dev/null || true
-        pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true
+        pkill -9 -f "[s]shd -D -e -p 2222" 2>/dev/null || true
+        pkill -9 -f "[/]usr/sbin/sshd" 2>/dev/null || true
         sleep 0.3
 
         prepare_ubuntu_ssh
+
+        # Uji konfigurasi sshd dulu; alasan gagalnya masuk ke vps.log
+        if ! run_in_ubuntu "/usr/sbin/sshd -t -o UsePAM=no -o StrictModes=no"; then
+            vps_log "PERINGATAN: 'sshd -t' melaporkan masalah (lihat baris di atas ini). Tetap mencoba menyalakan sshd."
+        fi
 
         # Subshell: unset LD_PRELOAD & env proot HANYA berlaku untuk proot,
         # tidak bocor ke shell utama (agar node tetap bisa dieksekusi).
@@ -179,27 +247,31 @@ start_vps() {
                 -o UsePAM=no \
                 -o PermitRootLogin=yes \
                 -o PasswordAuthentication=yes \
-                -o StrictModes=no > "$VPS_LOG" 2>&1 < /dev/null &
+                -o StrictModes=no >> "$VPS_LOG" 2>&1 < /dev/null &
         )
         local i
-        for i in $(seq 1 15); do
+        for i in $(seq 1 30); do
             sleep 1
             is_port_active 2222 && break
         done
         if is_port_active 2222; then
+            vps_log "OK: sshd aktif di port 2222."
             echo -e "${GREEN}✓ VPS OpenSSH aktif di background (Port 2222).${NC}"
         else
+            vps_log "GAGAL: sshd tidak membuka port 2222 dalam 30 detik."
             echo -e "${RED}✗ VPS OpenSSH belum aktif. Cek log: $VPS_LOG${NC}"
-            [ -f "$VPS_LOG" ] && tail -n 8 "$VPS_LOG"
+            [ -f "$VPS_LOG" ] && tail -n 12 "$VPS_LOG"
             return 1
         fi
     else
-        pkill -f "sshd -p 2222" 2>/dev/null || true
-        sshd -p 2222 2>/dev/null || true
+        vps_log "Memakai fallback OpenSSH Termux (bukan Ubuntu PRoot)."
+        pkill -f "[s]shd -p 2222" 2>/dev/null || true
+        sshd -p 2222 >> "$VPS_LOG" 2>&1 || true
         sleep 1
         if is_port_active 2222; then
             echo -e "${GREEN}✓ OpenSSH Termux aktif di port 2222.${NC}"
         else
+            vps_log "GAGAL: OpenSSH Termux juga tidak aktif. Pasang dulu: pkg install openssh proot"
             echo -e "${RED}✗ OpenSSH gagal aktif. Pasang dulu: pkg install openssh proot${NC}"
             return 1
         fi
@@ -208,8 +280,10 @@ start_vps() {
 
 stop_vps() {
     echo -e "${YELLOW}>> Menghentikan VPS OpenSSH...${NC}"
-    pkill -9 -f "sshd -p 2222" 2>/dev/null || true
-    pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true
+    pkill -9 -f "[s]shd -D -e -p 2222" 2>/dev/null || true
+    pkill -9 -f "[s]shd -p 2222" 2>/dev/null || true
+    pkill -9 -f "[/]usr/sbin/sshd" 2>/dev/null || true
+    release_vps_lock
     echo -e "${GREEN}✓ VPS OpenSSH dihentikan.${NC}"
 }
 
