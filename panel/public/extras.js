@@ -557,7 +557,8 @@
 
     '<div class="log-card">' + cardHead('Tunnel & Domain', '#3B82F6', '<button class="btn btn-sm btn-action-blue" id="xs-reconn">Ganti URL Tunnel</button>') +
     '<div class="xt-pad"><div class="form-label">URL publik panel (Cloudflare Tunnel)</div>' +
-    '<div class="xt-inline"><input class="form-input" id="xs-pub" readonly value="-" style="font-family:var(--font-mono);font-size:12px;">' +
+    '<div class="xt-inline"><input class="form-input secret-val" id="xs-pub" readonly value="-" data-secret="sys-pub" data-kind="url" data-placeholder="-" style="font-family:var(--font-mono);font-size:12px;">' +
+    '<button type="button" class="btn btn-sm eye-btn" data-eye="sys-pub" title="Tampilkan" aria-pressed="false">' + window.Secret.EYE_SVG + '</button>' +
     '<button class="btn btn-sm" id="xs-pub-copy">Salin</button><button class="btn btn-sm" id="xs-pub-open">Buka</button></div>' +
     '<div class="xt-hint" id="xs-pub-state"></div>' +
     '<div class="xt-sep"></div><div class="form-label">Domain → port (untuk Cloudflare Named Tunnel)</div>' +
@@ -581,10 +582,13 @@
   function renderDomains() {
     var box = $('#xs-dom');
     if (!box) return;
+    window.Secret.reset('dom-');
     box.innerHTML = domains.length ? domains.map(function (d, i) {
-      return '<div class="xt-inline" style="margin-bottom:6px;"><span class="xt-sub" style="margin:0;flex:1;">' + esc(d.host) + ' → localhost:' + esc(d.port) + '</span>' +
+      return '<div class="xt-inline" style="margin-bottom:6px;"><span class="xt-sub" style="margin:0;flex:1;"><span class="secret-val" data-secret="dom-' + i + '" data-kind="host"></span> → localhost:' + esc(d.port) + '</span>' +
+        '<button type="button" class="btn btn-sm eye-btn" data-eye="dom-' + i + '" title="Tampilkan" aria-pressed="false">' + window.Secret.EYE_SVG + '</button>' +
         '<button class="btn btn-sm btn-action-red" data-di="' + i + '">✕</button></div>';
     }).join('') : '<div class="xt-sub">Belum ada domain.</div>';
+    domains.forEach(function (d, i) { window.Secret.set('dom-' + i, d.host); });
   }
 
   function loadPorts() {
@@ -592,8 +596,7 @@
       if (!r.ok) return;
       domains = r.domains || [];
       renderDomains();
-      var pub = $('#xs-pub');
-      pub.value = r.publicUrl || '-';
+      window.Secret.set('sys-pub', r.publicUrl || '');
       $('#xs-pub-state').textContent = r.tunnelStatus === 'connected' ? 'Tunnel terhubung.' : r.tunnelStatus === 'connecting' ? 'Tunnel sedang menghubungkan...' : 'Tunnel tidak aktif.';
       var note = r.method === 'probe' ? '<div class="xt-hint" style="padding:0 16px 10px;">Perangkat tidak mengizinkan daftar port lengkap; ini hasil pemindaian port umum dan port app.</div>' : '';
       var box = $('#xs-ports');
@@ -679,12 +682,12 @@
       });
     };
     $('#xs-pub-copy', sec).onclick = function () {
-      var v = $('#xs-pub').value;
-      if (v && v !== '-') window.copyToClipboard(v).then(function () { toast('URL disalin', 'success'); }).catch(function () {});
+      var v = window.Secret.get('sys-pub');
+      if (v) window.copyToClipboard(v).then(function () { toast('URL disalin', 'success'); }).catch(function () {});
     };
     $('#xs-pub-open', sec).onclick = function () {
-      var v = $('#xs-pub').value;
-      if (v && v !== '-') window.open(v, '_blank', 'noopener');
+      var v = window.Secret.get('sys-pub');
+      if (v) window.open(v, '_blank', 'noopener');
     };
     $('#xs-ports-refresh', sec).onclick = loadPorts;
     $('#xs-dom-add', sec).onclick = function () {

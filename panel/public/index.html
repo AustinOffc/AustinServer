@@ -385,6 +385,24 @@
       flex-shrink: 0;
     }
 
+    /* Sensor data (mask + tombol mata) */
+    .secret-val { font-family: var(--font-mono); }
+    .secret-val[data-masked="1"] { letter-spacing: 1px; color: var(--text-muted); user-select: none; -webkit-user-select: none; }
+    .eye-btn { display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; min-height: 28px; flex-shrink: 0; }
+    .eye-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .eye-btn .eye-off { display: none; }
+    .eye-btn[aria-pressed="true"] .eye-on { display: none; }
+    .eye-btn[aria-pressed="true"] .eye-off { display: inline; }
+    .eye-btn[aria-pressed="true"] { color: #60A5FA; border-color: rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.12); }
+    .eye-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pw-wrap { position: relative; }
+    .pw-wrap .form-input { padding-right: 42px; }
+    .pw-wrap .pw-eye { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: transparent; border: 0; color: var(--text-muted); cursor: pointer; padding: 6px; display: inline-flex; }
+    .pw-wrap .pw-eye svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .pw-wrap .pw-eye .eye-off { display: none; }
+    .pw-wrap .pw-eye[aria-pressed="true"] .eye-on { display: none; }
+    .pw-wrap .pw-eye[aria-pressed="true"] .eye-off { display: inline; }
+
     /* Grid & Cards */
     .spec-card {
       background: var(--bg-surface);
@@ -1776,8 +1794,10 @@
       .quick-url-label {
         font-size: 10px;
       }
+      .quick-url-box { flex-wrap: wrap; }
       .quick-url-box code {
         font-size: 11px;
+        flex: 1 1 100%;
       }
 
       .grid-cards {
@@ -2009,7 +2029,8 @@
         <div class="quick-url-item primary">
           <span class="quick-url-label">🌐 Web Publik:</span>
           <div class="quick-url-box">
-            <code id="ribbon-public-url">Menghubungkan tunnel...</code>
+            <code id="ribbon-public-url" class="secret-val" data-secret="pub-url" data-kind="url" data-placeholder="Menghubungkan tunnel...">Menghubungkan tunnel...</code>
+            <button type="button" class="btn btn-sm eye-btn" data-eye="pub-url" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
             <button class="btn btn-primary btn-sm" onclick="copyRibbonPublicUrl()">Salin</button>
             <a class="btn btn-sm" id="ribbon-btn-visit" href="#" target="_blank" rel="noopener" style="padding: 3px 8px; font-size: 11px; text-decoration: none; color: #60A5FA; background: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.3); display: none;">Kunjungi ↗</a>
           </div>
@@ -2017,7 +2038,8 @@
         <div class="quick-url-item">
           <span class="quick-url-label" style="color: var(--text-muted);">🏠 Web Lokal:</span>
           <div class="quick-url-box">
-            <code id="ribbon-local-url">http://127.0.0.1:8080</code>
+            <code id="ribbon-local-url" class="secret-val" data-secret="local-url" data-kind="url" data-placeholder="Memuat...">http://127.0.0.1:8080</code>
+            <button type="button" class="btn btn-sm eye-btn" data-eye="local-url" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
             <button class="btn btn-sm" onclick="copyRibbonLocalUrl()">Salin</button>
           </div>
         </div>
@@ -2051,7 +2073,7 @@
           </div>
           <div class="spec-item">
             <span class="spec-label">OS</span>
-            <span class="spec-value" id="spec-os">Memuat...</span>
+            <span class="spec-value"><span id="spec-os">Memuat...</span> <span id="spec-host-wrap" style="display:none;">(<span class="secret-val" data-secret="hostname" data-kind="host"></span>) <button type="button" class="btn btn-sm eye-btn" data-eye="hostname" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></span></span>
           </div>
           <div class="spec-item">
             <span class="spec-label">ARSITEKTUR</span>
@@ -2231,7 +2253,8 @@
               <span class="badge-pinggy" id="vps-tunnel-badge">Public Tunnel</span>
             </div>
             <div class="remote-ssh-cmd-row">
-              <code id="vps-ssh-command">Menghubungkan tunnel remote SSH...</code>
+              <code id="vps-ssh-command" class="secret-val" data-secret="ssh-pub" data-kind="ssh" data-placeholder="Menghubungkan tunnel remote SSH...">Menghubungkan tunnel remote SSH...</code>
+              <button type="button" class="btn btn-sm eye-btn" data-eye="ssh-pub" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
               <button class="btn btn-primary btn-sm" id="btn-copy-ssh" onclick="copySshCommand()" title="Salin Perintah SSH Publik">
                 <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                 <span>Salin</span>
@@ -2242,7 +2265,8 @@
               <span>Akses SSH Lokal (Wi-Fi)</span>
             </div>
             <div class="remote-ssh-cmd-row">
-              <code id="vps-local-ssh-code">ssh root@127.0.0.1 -p 2222</code>
+              <code id="vps-local-ssh-code" class="secret-val" data-secret="ssh-local" data-kind="ssh" data-placeholder="Memuat...">ssh root@127.0.0.1 -p 2222</code>
+              <button type="button" class="btn btn-sm eye-btn" data-eye="ssh-local" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button>
               <button class="btn btn-sm" id="btn-copy-local-ssh" onclick="copyLocalSshCommand()" title="Salin Perintah SSH Lokal">
                 <svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
                 <span>Salin</span>
@@ -2250,7 +2274,7 @@
             </div>
 
             <div class="meta-chips-grid cols-2" style="margin-top: 2px;">
-              <span class="meta-chip">🔑 Password: <strong style="color:#60A5FA;">ubuntu123</strong></span>
+              <span class="meta-chip">🔑 Password: <strong class="secret-val" style="color:#60A5FA;" data-secret="vps-pass" data-kind="pass" data-placeholder="••••••••">••••••••</strong> <button type="button" class="btn btn-sm eye-btn" data-eye="vps-pass" title="Tampilkan / sembunyikan" aria-label="Tampilkan atau sembunyikan" aria-pressed="false"><svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></span>
               <span class="meta-chip">🔌 Port: <strong>2222</strong></span>
             </div>
           </div>
@@ -2566,11 +2590,11 @@
       
       <div class="form-group">
         <label class="form-label">Username</label>
-        <input type="text" class="form-input" id="login-user" value="admin" autocomplete="username">
+        <input type="text" class="form-input" id="login-user" placeholder="Username" autocomplete="username">
       </div>
       <div class="form-group">
         <label class="form-label">Password</label>
-        <input type="password" class="form-input" id="login-pass" autocomplete="current-password" placeholder="Password server">
+        <input type="password" class="form-input" id="login-pass" data-pw-eye autocomplete="current-password" placeholder="Password server">
       </div>
       <div class="modal-footer" style="margin-top: 14px;">
         <button class="btn btn-primary" style="width: 100%;" onclick="submitLogin()">Masuk ke Server</button>
@@ -2598,15 +2622,15 @@
       </div>
       <div class="form-group" style="margin-bottom: 10px;">
         <label class="form-label" for="settings-current-pass">Password Saat Ini <span style="color:var(--accent-rose)">*</span></label>
-        <input type="password" class="form-input" id="settings-current-pass" placeholder="Masukkan password saat ini" autocomplete="current-password">
+        <input type="password" class="form-input" id="settings-current-pass" data-pw-eye placeholder="Masukkan password saat ini" autocomplete="current-password">
       </div>
       <div class="form-group" style="margin-bottom: 10px;">
         <label class="form-label" for="settings-new-pass">Password Baru (Opsional)</label>
-        <input type="password" class="form-input" id="settings-new-pass" placeholder="Minimal 5 karakter" autocomplete="new-password">
+        <input type="password" class="form-input" id="settings-new-pass" data-pw-eye placeholder="Minimal 5 karakter" autocomplete="new-password">
       </div>
       <div class="form-group" style="margin-bottom: 14px;">
         <label class="form-label" for="settings-confirm-pass">Konfirmasi Password Baru</label>
-        <input type="password" class="form-input" id="settings-confirm-pass" placeholder="Ulangi password baru" autocomplete="new-password">
+        <input type="password" class="form-input" id="settings-confirm-pass" data-pw-eye placeholder="Ulangi password baru" autocomplete="new-password">
       </div>
       <div class="modal-footer">
         <button class="btn btn-sm" onclick="closeModal('modal-account-settings')">Batal</button>
@@ -2767,6 +2791,110 @@
       });
     }
 
+    // ------------------------------------------------------------------
+    // SENSOR DATA: nilai asli disimpan di memori, tampilan di-mask (••••)
+    // sampai tombol mata ditekan. Salin tetap memakai nilai asli.
+    // ------------------------------------------------------------------
+    const Secret = (() => {
+      const store = {};
+      const shown = {};
+      const timers = {};
+      const AUTO_HIDE_MS = 30000;
+      const EYE_SVG = '<svg class="eye-on" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+      function mask(kind, real) {
+        const dots = '•'.repeat(12);
+        if (kind === 'url') {
+          const m = /^(https?:\/\/)/i.exec(real);
+          return (m ? m[1] : '') + '•'.repeat(14);
+        }
+        if (kind === 'ssh') return 'ssh ' + dots;
+        if (kind === 'pass') return '•'.repeat(8);
+        return dots;
+      }
+
+      function paint(id) {
+        const real = store[id];
+        const has = real !== undefined && real !== null && real !== '';
+        document.querySelectorAll('[data-secret="' + id + '"]').forEach((el) => {
+          let text;
+          if (!has) {
+            text = el.getAttribute('data-placeholder') || '-';
+            el.removeAttribute('data-masked');
+          } else if (shown[id]) {
+            text = real;
+            el.removeAttribute('data-masked');
+          } else {
+            text = mask(el.getAttribute('data-kind'), real);
+            el.setAttribute('data-masked', '1');
+          }
+          if ('value' in el) el.value = text; else el.textContent = text;
+          if (has) el.title = shown[id] ? '' : 'Disembunyikan. Klik ikon mata untuk melihat.';
+        });
+        document.querySelectorAll('[data-eye="' + id + '"]').forEach((b) => {
+          b.disabled = !has;
+          b.setAttribute('aria-pressed', has && shown[id] ? 'true' : 'false');
+          b.title = shown[id] ? 'Sembunyikan' : 'Tampilkan';
+        });
+      }
+
+      function set(id, value) {
+        store[id] = value;
+        paint(id);
+      }
+      function get(id) { return store[id] || ''; }
+      function toggle(id) {
+        shown[id] = !shown[id];
+        clearTimeout(timers[id]);
+        if (shown[id]) timers[id] = setTimeout(() => { shown[id] = false; paint(id); }, AUTO_HIDE_MS);
+        paint(id);
+      }
+      function hideAll() {
+        Object.keys(shown).forEach((id) => { if (shown[id]) { shown[id] = false; clearTimeout(timers[id]); paint(id); } });
+      }
+
+      document.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-eye]');
+        if (b && !b.disabled) toggle(b.getAttribute('data-eye'));
+      });
+      // Sembunyikan lagi saat tab disembunyikan / pindah aplikasi
+      document.addEventListener('visibilitychange', () => { if (document.hidden) hideAll(); });
+
+      // Tombol mata untuk kolom password (login & pengaturan akun)
+      function wirePasswordToggles() {
+        document.querySelectorAll('input[type="password"][data-pw-eye]').forEach((inp) => {
+          if (inp.parentElement.classList.contains('pw-wrap')) return;
+          const wrap = document.createElement('div');
+          wrap.className = 'pw-wrap';
+          inp.parentNode.insertBefore(wrap, inp);
+          wrap.appendChild(inp);
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'pw-eye';
+          btn.setAttribute('aria-label', 'Tampilkan atau sembunyikan password');
+          btn.setAttribute('aria-pressed', 'false');
+          btn.title = 'Tampilkan';
+          btn.innerHTML = EYE_SVG;
+          btn.addEventListener('click', () => {
+            const on = inp.type === 'password';
+            inp.type = on ? 'text' : 'password';
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.title = on ? 'Sembunyikan' : 'Tampilkan';
+          });
+          wrap.appendChild(btn);
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wirePasswordToggles);
+      else wirePasswordToggles();
+
+      function reset(prefix) {
+        Object.keys(shown).forEach((id) => { if (id.indexOf(prefix) === 0) { shown[id] = false; clearTimeout(timers[id]); } });
+      }
+
+      return { set, get, toggle, hideAll, reset, paint, EYE_SVG };
+    })();
+    window.Secret = Secret;
+
     function formatBytes(bytes) {
       if (!bytes || bytes === 0) return '0 B';
       const k = 1024;
@@ -2921,7 +3049,9 @@
           specStatus.textContent = 'Online 24/7 (Stabil)';
         }
 
-        document.getElementById('spec-os').textContent = `${data.platform || '-'} (${data.hostname || '-'})`;
+        document.getElementById('spec-os').textContent = data.platform || '-';
+        document.getElementById('spec-host-wrap').style.display = data.hostname ? '' : 'none';
+        Secret.set('hostname', data.hostname || '');
         document.getElementById('spec-arch').textContent = data.arch ? (data.arch.includes('64') ? `${data.arch} (64-bit)` : (data.arch.includes('arm') ? `${data.arch} (32-bit)` : data.arch)) : '-';
         document.getElementById('spec-runtime').textContent = data.nodeVersion ? (data.nodeVersion.startsWith('Node') ? data.nodeVersion : `Node ${data.nodeVersion}`) : '-';
 
@@ -3058,12 +3188,13 @@
           if (vpsStopBtn) vpsStopBtn.style.display = 'none';
         }
 
-        const vpsCmd = (data.vps && data.vps.publicCommand) ? data.vps.publicCommand : 'Menghubungkan tunnel remote SSH...';
-        document.getElementById('vps-ssh-command').textContent = vpsCmd;
-        
+        // SSH publik (di-mask sampai tombol mata ditekan)
+        const vpsCmd = (data.vps && data.vps.publicCommand) ? data.vps.publicCommand : '';
+        Secret.set('ssh-pub', vpsCmd);
+
         const vpsBadgeEl = document.getElementById('vps-tunnel-badge');
         if (vpsBadgeEl) {
-          if (data.vps && data.vps.publicCommand) {
+          if (vpsCmd) {
             vpsBadgeEl.textContent = 'Public Tunnel (Aktif)';
             vpsBadgeEl.style.color = '#34D399';
             vpsBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
@@ -3074,79 +3205,46 @@
           }
         }
 
+        // Password VPS dari konfigurasi server (bukan lagi tertulis di HTML)
+        Secret.set('vps-pass', (data.vps && data.vps.password) ? data.vps.password : '');
+
+        // Link lokal
         const localIp = (data.network && data.network.localIPs && data.network.localIPs[0]) ? data.network.localIPs[0].address : '127.0.0.1';
-        const localWebUrl = `http://${localIp}:8080`;
-        
-        document.getElementById('vps-local-ssh-code').textContent = `ssh root@${localIp} -p 2222`;
-        document.getElementById('ribbon-local-url').textContent = localWebUrl;
-        document.getElementById('local-web-url-text').textContent = localWebUrl;
-        
-        const openLocalBtn = document.getElementById('btn-open-local');
-        if (openLocalBtn) openLocalBtn.href = localWebUrl;
+        Secret.set('local-url', `http://${localIp}:8080`);
+        Secret.set('ssh-local', `ssh root@${localIp} -p 2222`);
 
-        // Cloudflare Public Domain & Ribbon
+        // Link publik (Cloudflare Tunnel)
         const pubUrl = data.network ? data.network.publicUrl : null;
-        const cfText = document.getElementById('cloudflare-url-text');
-        const cfOpen = document.getElementById('btn-open-cf');
-        const cfBadge = document.getElementById('cloudflare-live-badge');
-        const ribbonPub = document.getElementById('ribbon-public-url');
         const ribbonVisit = document.getElementById('ribbon-btn-visit');
-
-        if (pubUrl) {
-          cfText.textContent = pubUrl;
-          cfOpen.href = pubUrl;
-          cfOpen.style.display = 'inline-flex';
-          cfBadge.innerHTML = '<span class="status-dot"></span> Terhubung';
-          cfBadge.style.color = 'var(--accent-emerald)';
-
-          if (ribbonPub) ribbonPub.textContent = pubUrl;
-          if (ribbonVisit) {
-            ribbonVisit.href = pubUrl;
-            ribbonVisit.style.display = 'inline-flex';
-          }
-        } else {
-          cfText.textContent = 'Menghubungkan domain publik...';
-          cfOpen.style.display = 'none';
-          cfBadge.innerHTML = '<span class="status-dot" style="background:#F59E0B;box-shadow:none;"></span> Menghubungkan';
-          cfBadge.style.color = '#F59E0B';
-
-          if (ribbonPub) ribbonPub.textContent = 'Menghubungkan tunnel...';
-          if (ribbonVisit) ribbonVisit.style.display = 'none';
+        Secret.set('pub-url', pubUrl || '');
+        if (ribbonVisit) {
+          if (pubUrl) { ribbonVisit.href = pubUrl; ribbonVisit.style.display = 'inline-flex'; }
+          else { ribbonVisit.style.display = 'none'; }
         }
+        Secret.set('sys-pub', pubUrl || '');
       } catch (e) {}
     }
 
     function copySshCommand() {
-      const cmd = document.getElementById('vps-ssh-command').textContent;
+      const cmd = Secret.get('ssh-pub');
       if (cmd.startsWith('ssh')) copyText(cmd);
       else showToast('Tunnel SSH publik belum aktif', 'info');
     }
 
     function copyLocalSshCommand() {
-      const cmd = document.getElementById('vps-local-ssh-code').textContent;
-      copyText(cmd);
-    }
-
-    function copyCfUrl() {
-      const url = document.getElementById('cloudflare-url-text').textContent;
-      if (url.startsWith('http')) copyText(url);
-      else showToast('Domain publik belum aktif', 'info');
-    }
-
-    function copyLocalWebUrl() {
-      const url = document.getElementById('local-web-url-text').textContent;
-      copyText(url);
+      const cmd = Secret.get('ssh-local');
+      if (cmd) copyText(cmd);
     }
 
     function copyRibbonPublicUrl() {
-      const url = document.getElementById('ribbon-public-url').textContent;
+      const url = Secret.get('pub-url');
       if (url.startsWith('http')) copyText(url);
       else showToast('Domain publik belum aktif', 'info');
     }
 
     function copyRibbonLocalUrl() {
-      const url = document.getElementById('ribbon-local-url').textContent;
-      copyText(url);
+      const url = Secret.get('local-url');
+      if (url) copyText(url);
     }
 
     async function openAccountSettings() {

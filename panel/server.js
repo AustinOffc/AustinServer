@@ -367,7 +367,88 @@ function getThermalInfo() {
   };
 }
 
-function getBatteryInfo() {
+// PATH lengkap agar binary Android (dumpsys, cmd) & Termux:API selalu ketemu
+const ANDROID_PATH = [
+  '/data/data/com.termux/files/usr/bin',
+  '/data/data/com.termux/files/usr/bin/applets',
+  '/system/bin',
+  '/system/xbin',
+  '/vendor/bin',
+  process.env.PATH || '',
+].filter(Boolean).join(':');
+
+function runShellAsync(cmd, timeoutMs) {
+  return new Promise((resolve) => {
+    try {
+      exec(cmd, {
+        timeout: timeoutMs,
+        env: Object.assign({}, process.env, { PATH: ANDROID_PATH }),
+        maxBuffer: 1024 * 256,
+      }, (err, stdout) => {
+        resolve(err ? '' : String(stdout || ''));
+      });
+    } catch (e) { resolve(''); }
+  });
+}
+
+function readNum(file) {
+  try {
+    const v = parseInt(fs.readFileSync(file, 'utf8').trim(), 10);
+    return isNaN(v) ? null : v;
+  } catch { return null; }
+}
+
+function readText(file) {
+  try { return fs.readFileSync(file, 'utf8').trim(); } catch { return null; }
+}
+
+// Baca baterai dari /sys/class/power_supply (jika diizinkan oleh Android)
+function readBatterySysfs() {
+  const res = { percentage: null, status: null, temperature: null, rawVoltage: null, rawCurrent: null };
+  try {
+    const psDir = '/sys/class/power_supply';
+    if (!fs.existsSync(psDir)) return res;
+    const prefer = ['battery', 'bms', 'main', 'sec-fuelgauge', 'qcom-battery', 'smb-battery', 'max170xx_battery'];
+    const dirs = fs.readdirSync(psDir).sort((a, b) => {
+      const ai = prefer.indexOf(a), bi = prefer.indexOf(b);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    for (const d of dirs) {
+      const dirPath = path.join(psDir, d);
+      const type = (readText(path.join(dirPath, 'type')) || '').toLowerCase();
+      if (type && type !== 'battery') continue; // lewati USB/AC/Wireless
+      const cap = readNum(path.join(dirPath, 'capacity'));
+      if (cap === null || cap < 0 || cap > 100) continue;
+      res.percentage = cap;
+      res.status = readText(path.join(dirPath, 'status'));
+      const t = readNum(path.join(dirPath, 'temp'));
+      if (t !== null) res.temperature = (t > 100 ? t / 10 : t).toFixed(1);
+      for (const f of ['voltage_now', 'batt_vol', 'voltage_avg']) {
+        const v = readNum(path.join(dirPath, f));
+        if (v !== null && v > 0) { res.rawVoltage = v; break; }
+      }
+      for (const f of ['current_now', 'batt_current', 'current_avg']) {
+        const c = readNum(path.join(dirPath, f));
+        if (c !== null) { res.rawCurrent = c; break; }
+      }
+      break;
+    }
+  } catch {}
+  return res;
+}
+
+function androidStatusName(code) {
+  if (code === 2) return 'Charging';
+  if (code === 3) return 'Discharging';
+  if (code === 4) return 'Not charging';
+  if (code === 5) return 'Full';
+  return 'Unknown';
+}
+
+let batteryCache = null;
+let batteryPolling = false;
+
+async function collectBatteryInfo() {
   if (os.platform() === 'win32') {
     return {
       percentage: 100,
@@ -382,178 +463,143 @@ function getBatteryInfo() {
   }
 
   let percentage = null;
-  let status = 'Unknown';
+  let status = null;
   let temperature = null;
-  let rawVoltage = null; // in uV or mV
-  let rawCurrent = null; // in uA or mA
-  let isCharging = false;
+  let rawVoltage = null; // uV atau mV
+  let rawCurrent = null; // uA atau mA
 
-  // 1. Scan seluruh node power_supply di Linux / Android (/sys/class/power_supply/*)
-  try {
-    const psDir = '/sys/class/power_supply';
-    if (fs.existsSync(psDir)) {
-      const candidates = ['battery', 'bms', 'main', 'sec-fuelgauge', 'qcom-battery', 'smb-battery', 'max170xx_battery'];
-      const dirs = fs.readdirSync(psDir);
-      
-      const sortedDirs = dirs.slice().sort((a, b) => {
-        const aPri = candidates.indexOf(a) !== -1 ? candidates.indexOf(a) : 999;
-        const bPri = candidates.indexOf(b) !== -1 ? candidates.indexOf(b) : 999;
-        return aPri - bPri;
-      });
+  // 1. sysfs (butuh izin baca dari Android)
+  const sys = readBatterySysfs();
+  percentage = sys.percentage;
+  status = sys.status;
+  temperature = sys.temperature;
+  rawVoltage = sys.rawVoltage;
+  rawCurrent = sys.rawCurrent;
 
-      for (let i = 0; i < sortedDirs.length; i++) {
-        const d = sortedDirs[i];
-        const dirPath = path.join(psDir, d);
-        const capFile = path.join(dirPath, 'capacity');
-        if (fs.existsSync(capFile)) {
-          const rawCap = parseInt(fs.readFileSync(capFile, 'utf8').trim(), 10);
-          if (!isNaN(rawCap) && rawCap >= 0 && rawCap <= 100) {
-            percentage = rawCap;
+  const needMore = () => percentage === null || rawVoltage === null || rawCurrent === null;
 
-            const stFile = path.join(dirPath, 'status');
-            if (fs.existsSync(stFile)) {
-              status = fs.readFileSync(stFile, 'utf8').trim();
-            }
-
-            const tempFile = path.join(dirPath, 'temp');
-            if (fs.existsSync(tempFile)) {
-              const rawT = parseInt(fs.readFileSync(tempFile, 'utf8').trim(), 10);
-              if (!isNaN(rawT)) {
-                temperature = (rawT > 100 ? (rawT / 10) : rawT).toFixed(1);
-              }
-            }
-
-            // Voltage
-            const vFiles = ['voltage_now', 'batt_vol', 'voltage_avg'];
-            for (const vf of vFiles) {
-              const vp = path.join(dirPath, vf);
-              if (fs.existsSync(vp)) {
-                const vVal = parseInt(fs.readFileSync(vp, 'utf8').trim(), 10);
-                if (!isNaN(vVal) && vVal > 0) { rawVoltage = vVal; break; }
-              }
-            }
-
-            // Current
-            const iFiles = ['current_now', 'batt_current', 'current_avg'];
-            for (const ifile of iFiles) {
-              const ip = path.join(dirPath, ifile);
-              if (fs.existsSync(ip)) {
-                const iVal = parseInt(fs.readFileSync(ip, 'utf8').trim(), 10);
-                if (!isNaN(iVal)) { rawCurrent = iVal; break; }
-              }
-            }
-
-            break;
-          }
-        }
-      }
-    }
-  } catch {}
-
-  // 2. Fallback ke dumpsys battery & cmd battery (Android Framework API bawaan)
-  if (percentage === null || rawVoltage === null || rawCurrent === null) {
+  // 2. Termux:API (butuh app Termux:API). Timeout dilonggarkan karena start pertama lambat.
+  if (needMore()) {
+    const out = await runShellAsync('termux-battery-status', 8000);
     try {
-      const out = execSync('dumpsys battery 2>/dev/null || cmd battery get level 2>/dev/null', { timeout: 1200, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-      if (out) {
-        if (percentage === null) {
-          const levelMatch = out.match(/level:\s*([0-9]+)/i);
-          if (levelMatch) {
-            percentage = parseInt(levelMatch[1], 10);
-          } else if (/^[0-9]+$/.test(out.trim())) {
-            percentage = parseInt(out.trim(), 10);
-          }
+      const data = JSON.parse(out);
+      if (data && data.percentage !== undefined && data.percentage !== null) {
+        if (percentage === null) percentage = Math.round(Number(data.percentage));
+        if (!status && data.status) status = String(data.status);
+        if (temperature === null && data.temperature !== undefined && data.temperature !== null) {
+          const tv = Number(data.temperature);
+          if (!isNaN(tv)) temperature = (tv > 100 ? tv / 10 : tv).toFixed(1);
         }
-
-        if (status === 'Unknown') {
-          const statusMatch = out.match(/status:\s*([0-9]+)/i);
-          if (statusMatch) {
-            const stCode = parseInt(statusMatch[1], 10);
-            if (stCode === 2) status = 'Charging';
-            else if (stCode === 3) status = 'Discharging';
-            else if (stCode === 5) status = 'Full';
-            else status = 'In Use';
-          }
-        }
-
-        if (temperature === null) {
-          const tempMatch = out.match(/temperature:\s*([0-9]+)/i);
-          if (tempMatch) {
-            const rawT = parseInt(tempMatch[1], 10);
-            temperature = (rawT > 100 ? (rawT / 10) : rawT).toFixed(1);
-          }
-        }
-
-        if (rawVoltage === null) {
-          const vMatch = out.match(/voltage:\s*([0-9]+)/i);
-          if (vMatch) rawVoltage = parseInt(vMatch[1], 10);
-        }
-
-        if (rawCurrent === null) {
-          const cMatch = out.match(/current\s*now:\s*(-?[0-9]+)/i);
-          if (cMatch) rawCurrent = parseInt(cMatch[1], 10);
-        }
+        if (rawVoltage === null && data.voltage !== undefined && data.voltage !== null) rawVoltage = Number(data.voltage);
+        if (rawCurrent === null && data.current !== undefined && data.current !== null) rawCurrent = Number(data.current);
       }
     } catch {}
   }
 
-  // 3. Fallback ke termux-battery-status (jika paket Termux:API terpasang)
-  if (percentage === null || rawVoltage === null || rawCurrent === null) {
-    try {
-      const out = execSync('termux-battery-status 2>/dev/null', { timeout: 1000, stdio: ['ignore', 'pipe', 'ignore'] }).toString();
-      const data = JSON.parse(out);
-      if (data && data.percentage !== undefined) {
-        if (percentage === null) percentage = data.percentage;
-        if (data.status) status = data.status;
-        if (temperature === null && data.temperature) {
-          temperature = (data.temperature > 100 ? data.temperature / 10 : data.temperature).toFixed(1);
-        }
-        if (rawVoltage === null && data.voltage !== undefined) rawVoltage = data.voltage;
-        if (rawCurrent === null && data.current !== undefined) rawCurrent = data.current;
+  // 3. dumpsys battery (jalan jika punya akses shell / root)
+  if (percentage === null) {
+    let out = await runShellAsync('dumpsys battery', 4000);
+    if (!/level:/i.test(out)) out = await runShellAsync('su -c "dumpsys battery"', 4000);
+    if (/level:/i.test(out)) {
+      const lv = out.match(/level:\s*([0-9]+)/i);
+      if (lv) percentage = parseInt(lv[1], 10);
+      const st = out.match(/status:\s*([0-9]+)/i);
+      if (st && !status) status = androidStatusName(parseInt(st[1], 10));
+      const tm = out.match(/temperature:\s*([0-9]+)/i);
+      if (tm && temperature === null) {
+        const rt = parseInt(tm[1], 10);
+        temperature = (rt > 100 ? rt / 10 : rt).toFixed(1);
       }
+      const vm = out.match(/voltage:\s*([0-9]+)/i);
+      if (vm && rawVoltage === null) rawVoltage = parseInt(vm[1], 10);
+      const cm = out.match(/current\s*now:\s*(-?[0-9]+)/i);
+      if (cm && rawCurrent === null) rawCurrent = parseInt(cm[1], 10);
+    }
+  }
+
+  // 4. Fallback terakhir: `cmd battery get ...` & suhu baterai dari thermal zone
+  if (percentage === null) {
+    const out = (await runShellAsync('cmd battery get level', 3000)).trim();
+    if (/^[0-9]+$/.test(out)) percentage = parseInt(out, 10);
+  }
+
+  if (temperature === null) {
+    try {
+      const th = getThermalInfo();
+      if (th && th.batteryTemp !== null && th.batteryTemp !== undefined) temperature = Number(th.batteryTemp).toFixed(1);
     } catch {}
   }
 
   const stLower = (status || '').toLowerCase();
-  isCharging = stLower.includes('charg') || stLower.includes('ac') || stLower.includes('usb') || stLower.includes('full');
+  const isCharging = (stLower.includes('charg') && !stLower.includes('discharg') && !stLower.includes('not charg')) ||
+    stLower.includes('full') || stLower === 'ac' || stLower.includes('usb');
 
   let volts = null;
-  if (rawVoltage !== null) {
+  if (rawVoltage !== null && !isNaN(rawVoltage) && rawVoltage > 0) {
     volts = rawVoltage > 10000 ? (rawVoltage / 1000000) : (rawVoltage / 1000);
   }
 
   let amps = null;
-  if (rawCurrent !== null) {
+  if (rawCurrent !== null && !isNaN(rawCurrent)) {
     const absCurrent = Math.abs(rawCurrent);
     amps = absCurrent > 5000 ? (absCurrent / 1000000) : (absCurrent / 1000);
   }
 
   let watts = null;
   let powerText = null;
-
   if (volts !== null && amps !== null && volts > 0 && amps > 0) {
     watts = parseFloat((volts * amps).toFixed(2));
     const vStr = `${volts.toFixed(2)}V`;
     const aStr = `${amps.toFixed(2)}A`;
-    if (isCharging) {
-      powerText = `Pengisian: +${watts} W (${vStr} • ${aStr})`;
-    } else {
-      powerText = `Konsumsi: ${watts} W (${vStr} • ${aStr})`;
-    }
-  } else if (isCharging) {
-    powerText = `Pengisian Aktif (${status})`;
+    powerText = isCharging
+      ? `Pengisian: +${watts} W (${vStr} • ${aStr})`
+      : `Konsumsi: ${watts} W (${vStr} • ${aStr})`;
+  } else if (percentage !== null) {
+    powerText = isCharging ? `Pengisian Aktif (${status || 'Charging'})` : `Penggunaan Baterai (${status || 'Discharging'})`;
   } else {
-    powerText = `Penggunaan Baterai (${status})`;
+    powerText = 'Baterai tidak terbaca. Pasang app Termux:API lalu jalankan: pkg install termux-api';
   }
 
   return {
-    percentage: percentage !== null ? percentage : null,
-    status: percentage !== null ? status : 'Tidak terbaca',
+    percentage: percentage,
+    status: percentage !== null ? (status || (isCharging ? 'Charging' : 'Discharging')) : 'Tidak terbaca',
     temperature: temperature !== null ? temperature : null,
     voltage: volts ? `${volts.toFixed(2)} V` : null,
     current: amps ? `${amps.toFixed(2)} A` : null,
     watts: watts,
     powerText: powerText,
     isCharging: isCharging
+  };
+}
+
+async function refreshBatteryCache() {
+  if (batteryPolling) return;
+  batteryPolling = true;
+  try {
+    const info = await collectBatteryInfo();
+    // Jangan timpa data valid terakhir dengan hasil kosong sesaat
+    if (info.percentage !== null || !batteryCache || batteryCache.percentage === null) {
+      batteryCache = info;
+    }
+  } catch (e) {
+  } finally {
+    batteryPolling = false;
+  }
+}
+setInterval(refreshBatteryCache, 10000);
+refreshBatteryCache();
+
+function getBatteryInfo() {
+  if (batteryCache) return batteryCache;
+  return {
+    percentage: null,
+    status: 'Memuat...',
+    temperature: null,
+    voltage: null,
+    current: null,
+    watts: null,
+    powerText: 'Membaca status baterai...',
+    isCharging: false
   };
 }
 
@@ -661,46 +707,136 @@ function getDiskInfo() {
   return disks;
 }
 
+// ------------------------------------------------------------------
+// CPU USAGE
+// Android 8+ memblokir /proc/stat untuk app biasa, jadi dipakai beberapa
+// metode berurutan: /proc/stat -> os.cpus() -> /proc/<pid>/stat -> loadavg.
+// ------------------------------------------------------------------
+const CPU_CORES = (os.cpus() && os.cpus().length) ? os.cpus().length : 4;
 let prevCpuSample = null;
-function getCpuUsagePercent() {
+let prevProcSample = null;
+let cpuUsageCache = 0;
+let cpuMethod = 'none';
+
+function sampleProcStat() {
   try {
-    if (fs.existsSync('/proc/stat')) {
-      const stat = fs.readFileSync('/proc/stat', 'utf8');
-      const firstLine = stat.split('\n')[0];
-      const parts = firstLine.trim().split(/\s+/).slice(1).map(Number);
-      if (parts.length >= 4) {
-        const idle = (parts[3] || 0) + (parts[4] || 0);
-        const total = parts.reduce((acc, val) => acc + val, 0);
-        if (!prevCpuSample) {
-          prevCpuSample = { idle, total };
-          return 0;
-        }
-        const idleDiff = idle - prevCpuSample.idle;
-        const totalDiff = total - prevCpuSample.total;
-        prevCpuSample = { idle, total };
-        if (totalDiff <= 0) return 0;
-        const pct = Math.round((1 - (idleDiff / totalDiff)) * 100);
-        return Math.max(0, Math.min(100, pct));
-      }
-    } else if (os.cpus && os.cpus().length) {
-      const cpus = os.cpus();
-      let idle = 0, total = 0;
-      for (const cpu of cpus) {
-        for (const type in cpu.times) total += cpu.times[type];
-        idle += cpu.times.idle;
-      }
-      if (!prevCpuSample) {
-        prevCpuSample = { idle, total };
-        return 0;
-      }
-      const idleDiff = idle - prevCpuSample.idle;
-      const totalDiff = total - prevCpuSample.total;
-      prevCpuSample = { idle, total };
-      if (totalDiff <= 0) return 0;
-      return Math.max(0, Math.min(100, Math.round((1 - (idleDiff / totalDiff)) * 100)));
+    const stat = fs.readFileSync('/proc/stat', 'utf8');
+    const firstLine = stat.split('\n')[0];
+    if (!firstLine.startsWith('cpu')) return null;
+    const parts = firstLine.trim().split(/\s+/).slice(1).map(Number);
+    if (parts.length < 4 || parts.some(isNaN)) return null;
+    const idle = (parts[3] || 0) + (parts[4] || 0);
+    const total = parts.reduce((acc, val) => acc + val, 0);
+    if (total <= 0) return null;
+    return { idle, total };
+  } catch { return null; }
+}
+
+function sampleOsCpus() {
+  try {
+    const cpus = os.cpus();
+    if (!cpus || !cpus.length) return null;
+    let idle = 0, total = 0;
+    for (const cpu of cpus) {
+      for (const type in cpu.times) total += cpu.times[type];
+      idle += cpu.times.idle;
     }
-  } catch (e) {}
+    if (total <= 0) return null;
+    return { idle, total };
+  } catch { return null; }
+}
+
+// Total jiffies (utime+stime) semua proses milik user yang sama, dibaca dari /proc/<pid>/stat
+function sampleProcessTicks() {
+  try {
+    let ticks = 0;
+    let count = 0;
+    const entries = fs.readdirSync('/proc');
+    for (let i = 0; i < entries.length; i++) {
+      const name = entries[i];
+      if (!/^[0-9]+$/.test(name)) continue;
+      try {
+        const raw = fs.readFileSync(`/proc/${name}/stat`, 'utf8');
+        const afterComm = raw.slice(raw.lastIndexOf(')') + 2).split(' ');
+        const ut = parseInt(afterComm[11], 10);
+        const st = parseInt(afterComm[12], 10);
+        if (!isNaN(ut) && !isNaN(st)) { ticks += ut + st; count++; }
+      } catch {}
+    }
+    if (count === 0) return null;
+    return { ticks, time: Date.now() };
+  } catch { return null; }
+}
+
+function loadAvgPercent() {
+  try {
+    const la = os.loadavg()[0];
+    if (typeof la === 'number' && !isNaN(la)) {
+      return Math.max(0, Math.min(100, Math.round((la / CPU_CORES) * 100)));
+    }
+  } catch {}
   return 0;
+}
+
+function updateCpuUsage() {
+  // 1) /proc/stat
+  let cur = sampleProcStat();
+  if (cur) {
+    if (prevCpuSample && prevCpuSample.method === 'stat') {
+      const idleDiff = cur.idle - prevCpuSample.idle;
+      const totalDiff = cur.total - prevCpuSample.total;
+      if (totalDiff > 0) {
+        cpuUsageCache = Math.max(0, Math.min(100, Math.round((1 - idleDiff / totalDiff) * 100)));
+        cpuMethod = 'stat';
+      }
+    }
+    prevCpuSample = { idle: cur.idle, total: cur.total, method: 'stat' };
+    return; // /proc/stat terbaca: sampel pertama hanya untuk baseline
+  }
+
+  // 2) os.cpus()
+  cur = sampleOsCpus();
+  if (cur) {
+    if (prevCpuSample && prevCpuSample.method === 'oscpus') {
+      const idleDiff = cur.idle - prevCpuSample.idle;
+      const totalDiff = cur.total - prevCpuSample.total;
+      if (totalDiff > 0 && idleDiff >= 0) {
+        cpuUsageCache = Math.max(0, Math.min(100, Math.round((1 - idleDiff / totalDiff) * 100)));
+        cpuMethod = 'oscpus';
+      }
+    }
+    prevCpuSample = { idle: cur.idle, total: cur.total, method: 'oscpus' };
+    if (cpuMethod === 'oscpus') return;
+  }
+
+  // 3) Jumlah tick proses yang bisa dibaca (proses Termux/Node/proot milik app ini)
+  const ps = sampleProcessTicks();
+  if (ps) {
+    if (prevProcSample && ps.time > prevProcSample.time) {
+      const tickDiff = ps.ticks - prevProcSample.ticks;
+      const secs = (ps.time - prevProcSample.time) / 1000;
+      const HZ = 100; // USER_HZ Linux/Android
+      if (tickDiff >= 0 && secs > 0) {
+        const pct = (tickDiff / (secs * HZ * CPU_CORES)) * 100;
+        const procPct = Math.max(0, Math.min(100, Math.round(pct)));
+        cpuUsageCache = procPct;
+        cpuMethod = 'proc';
+      }
+    }
+    prevProcSample = ps;
+    if (cpuMethod === 'proc') return;
+  }
+
+  // 4) Fallback terakhir: estimasi dari load average
+  cpuUsageCache = loadAvgPercent();
+  cpuMethod = 'loadavg';
+}
+
+setInterval(updateCpuUsage, 2000);
+updateCpuUsage();
+
+function getCpuUsagePercent() {
+  return cpuUsageCache;
 }
 
 function getSystemStats() {
@@ -777,6 +913,8 @@ let vpsConfig = {
   publicHost: null,
   publicPort: null,
   publicCommand: null,
+  autoStart: true,
+  manualStop: false,
 };
 
 function loadVpsConfig() {
@@ -811,28 +949,51 @@ async function checkVpsListeningAsync() {
 setInterval(checkVpsListeningAsync, 8000);
 checkVpsListeningAsync();
 
-function startVpsService() {
+let vpsLaunching = false;
+
+function launchVpsProcess() {
   const startScript = path.join(BASE_DIR, 'start.sh');
+  const child = spawn('bash', [startScript, 'vps'], {
+    detached: true,
+    stdio: 'ignore',
+    env: Object.assign({}, process.env, { PATH: ANDROID_PATH }),
+  });
+  child.on('error', () => {});
+  child.unref();
+}
+
+function startVpsService(opts) {
+  const manual = !opts || !opts.auto;
   try {
-    const child = spawn('bash', [startScript, 'vps'], {
-      detached: true,
-      stdio: 'ignore',
-      env: process.env,
-    });
-    child.unref();
-    setTimeout(() => {
-      checkVpsListeningAsync().then((running) => {
-        if (running) startVpsTunnel();
-      });
-    }, 2000);
+    if (manual) saveVpsConfig({ manualStop: false });
+    if (vpsLaunching) return { ok: true, message: 'Service SSH VPS sedang dijalankan.' };
+    vpsLaunching = true;
+    launchVpsProcess();
+
+    // Tunggu sshd siap (proot butuh beberapa detik), baru nyalakan tunnel publik.
+    let tries = 0;
+    const waitReady = async () => {
+      tries++;
+      const running = await checkVpsListeningAsync();
+      if (running) {
+        vpsLaunching = false;
+        startVpsTunnel();
+        return;
+      }
+      if (tries >= 15) { vpsLaunching = false; return; }
+      setTimeout(waitReady, 2000);
+    };
+    setTimeout(waitReady, 2000);
     return { ok: true, message: 'Service SSH VPS sedang dijalankan.' };
   } catch (e) {
+    vpsLaunching = false;
     return { ok: false, message: 'Gagal menjalankan VPS: ' + e.message };
   }
 }
 
 function stopVpsService() {
   try {
+    saveVpsConfig({ manualStop: true });
     if (vpsTunnelProcess) {
       try { vpsTunnelProcess.kill('SIGKILL'); } catch (e) {}
       vpsTunnelProcess = null;
@@ -844,6 +1005,7 @@ function stopVpsService() {
       execSync('pkill -9 -f "tcp@free.pinggy.io" 2>/dev/null || true');
       execSync('pkill -9 -f "sshd -p 2222" 2>/dev/null || pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true');
     }
+    vpsLaunching = false;
     lastVpsRunningState = false;
     return { ok: true, message: 'Service SSH VPS berhasil dihentikan.' };
   } catch (e) {
@@ -859,6 +1021,28 @@ function restartVpsService() {
     }, 1500);
   });
 }
+
+// Watchdog: nyalakan VPS otomatis saat panel start dan pulihkan bila sshd mati
+// (mis. dibunuh Android). Tidak aktif jika user menekan tombol Stop.
+let vpsWatchdogFails = 0;
+let vpsWatchdogSkip = 0;
+async function vpsWatchdogTick() {
+  try {
+    if (os.platform() === 'win32') return;
+    loadVpsConfig();
+    if (!vpsConfig.enabled || vpsConfig.autoStart === false || vpsConfig.manualStop) return;
+    const running = await checkVpsListeningAsync();
+    if (running) { vpsWatchdogFails = 0; vpsWatchdogSkip = 0; return; }
+    if (vpsLaunching) return;
+    if (vpsWatchdogSkip > 0) { vpsWatchdogSkip--; return; }
+    vpsWatchdogFails++;
+    console.log(`[VPS Watchdog] Port ${vpsConfig.port || 2222} mati, menyalakan ulang (percobaan ${vpsWatchdogFails})...`);
+    startVpsService({ auto: true });
+    // Backoff: jangan spam jika gagal terus (maks tunggu ~5 menit)
+    vpsWatchdogSkip = Math.min(10, vpsWatchdogFails);
+  } catch (e) {}
+}
+setInterval(vpsWatchdogTick, 30000);
 
 function controlScreen(action) {
   try {
@@ -2283,6 +2467,7 @@ server.listen(PANEL_PORT, '0.0.0.0', () => {
   startPublicTunnel();
   startVpsTunnel();
   setupVpsCliHelpers();
+  setTimeout(vpsWatchdogTick, 3000);
 });
 
 // Proteksi sinyal: Abaikan Ctrl+C agar server tidak sengaja terhenti di terminal

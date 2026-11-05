@@ -19,7 +19,7 @@ ORIG_LD_PRELOAD="${LD_PRELOAD:-}"
 # Inisialisasi Environment Termux
 export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 [ -z "$HOME" ] || [ "$HOME" = "/" ] || [ "$HOME" = "/root" ] && [ -d "/data/data/com.termux/files/home" ] && export HOME="/data/data/com.termux/files/home"
-export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/system/bin:/system/xbin:$PATH"
 [ -d "$PREFIX/lib" ] && export LD_LIBRARY_PATH="$PREFIX/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 # Pulihkan LD_PRELOAD Termux (dipakai sebelum menjalankan node/binary Termux)
@@ -76,16 +76,63 @@ get_local_ip() {
 
 is_port_active() {
     local port="$1"
-    if command -v netstat >/dev/null 2>&1; then
-        netstat -tuln 2>/dev/null | grep -q ":${port}[[:space:]]" && return 0
+    if (exec 3<>"/dev/tcp/127.0.0.1/${port}") 2>/dev/null; then
+        return 0
+    fi
+    if command -v nc >/dev/null 2>&1; then
+        nc -z -w 1 127.0.0.1 "$port" >/dev/null 2>&1 && return 0
     fi
     if command -v ss >/dev/null 2>&1; then
-        ss -tuln 2>/dev/null | grep -q ":${port}[[:space:]]" && return 0
+        ss -tln 2>/dev/null | grep -q ":${port}[[:space:]]" && return 0
     fi
-    if command -v curl >/dev/null 2>&1; then
-        curl -s -m 1 "http://127.0.0.1:${port}/" >/dev/null 2>&1 && return 0
+    if command -v netstat >/dev/null 2>&1; then
+        netstat -tln 2>/dev/null | grep -q ":${port}[[:space:]]" && return 0
     fi
     return 1
+}
+
+# Jalankan perintah di dalam Ubuntu (proot) tanpa mengganggu shell utama
+run_in_ubuntu() {
+    (
+        unset LD_PRELOAD
+        export PROOT_NO_SECCOMP=1
+        proot --link2symlink -0 -r "$UBUNTU_DIR" \
+            -b /dev -b /dev/pts -b /proc -b /sys \
+            -w /root \
+            /usr/bin/env -i HOME=/root \
+            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            /bin/bash -c "$1"
+    ) >/dev/null 2>&1
+}
+
+# Pastikan sshd siap jalan: binary, user privsep, host key, dan folder runtime
+prepare_ubuntu_ssh() {
+    mkdir -p "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" "$UBUNTU_DIR/etc/ssh" 2>/dev/null || true
+    chmod 0755 "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" 2>/dev/null || true
+
+    if [ ! -x "$UBUNTU_DIR/usr/sbin/sshd" ]; then
+        echo -e "${YELLOW}>> OpenSSH belum terpasang di Ubuntu, memasang openssh-server...${NC}"
+        run_in_ubuntu "export DEBIAN_FRONTEND=noninteractive; rm -f /var/lib/dpkg/lock* /var/lib/apt/lists/lock /var/cache/apt/archives/lock; apt-get update -y; apt-get install -y --no-install-recommends openssh-server"
+    fi
+
+    # Konfigurasi sshd (dibuat ulang jika hilang)
+    if [ ! -s "$UBUNTU_DIR/etc/ssh/sshd_config" ]; then
+        cat > "$UBUNTU_DIR/etc/ssh/sshd_config" << 'SSHD_EOF'
+Port 2222
+ListenAddress 0.0.0.0
+PermitRootLogin yes
+PasswordAuthentication yes
+PermitEmptyPasswords no
+UsePAM no
+StrictModes no
+Subsystem sftp /usr/lib/openssh/sftp-server
+SSHD_EOF
+    fi
+
+    # Host key & user privilege-separation (tanpa ini sshd langsung keluar)
+    if ! ls "$UBUNTU_DIR"/etc/ssh/ssh_host_*_key >/dev/null 2>&1 || ! grep -q '^sshd:' "$UBUNTU_DIR/etc/passwd" 2>/dev/null; then
+        run_in_ubuntu "ssh-keygen -A; grep -q '^sshd:' /etc/passwd || useradd -r -M -d /run/sshd -s /usr/sbin/nologin sshd; mkdir -p /run/sshd; chmod 0755 /run/sshd"
+    fi
 }
 
 # -----------------------------------------------------------------------------
@@ -99,10 +146,12 @@ start_vps() {
 
     echo -e "${YELLOW}>> Menjalankan OpenSSH Server di dalam Ubuntu VPS (Port 2222)...${NC}"
     if [ -d "$UBUNTU_DIR" ] && command -v proot >/dev/null 2>&1; then
-        pkill -9 -f "sshd" 2>/dev/null || true
+        # Matikan sshd lama saja (jangan pkill pola "sshd" yang terlalu luas)
+        pkill -9 -f "sshd -p 2222" 2>/dev/null || true
+        pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true
         sleep 0.3
-        mkdir -p "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" 2>/dev/null || true
-        chmod 0755 "$UBUNTU_DIR/run/sshd" "$UBUNTU_DIR/var/run/sshd" 2>/dev/null || true
+
+        prepare_ubuntu_ssh
 
         # Subshell: unset LD_PRELOAD & env proot HANYA berlaku untuk proot,
         # tidak bocor ke shell utama (agar node tetap bisa dieksekusi).
@@ -125,10 +174,15 @@ start_vps() {
                 HOME=/root \
                 HOSTNAME=austin \
                 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-                /usr/sbin/sshd -p 2222 -D -e > "$VPS_LOG" 2>&1 &
+                /usr/sbin/sshd -D -e \
+                -p 2222 \
+                -o UsePAM=no \
+                -o PermitRootLogin=yes \
+                -o PasswordAuthentication=yes \
+                -o StrictModes=no > "$VPS_LOG" 2>&1 < /dev/null &
         )
         local i
-        for i in 1 2 3 4 5 6; do
+        for i in $(seq 1 15); do
             sleep 1
             is_port_active 2222 && break
         done
@@ -136,17 +190,26 @@ start_vps() {
             echo -e "${GREEN}✓ VPS OpenSSH aktif di background (Port 2222).${NC}"
         else
             echo -e "${RED}✗ VPS OpenSSH belum aktif. Cek log: $VPS_LOG${NC}"
+            [ -f "$VPS_LOG" ] && tail -n 8 "$VPS_LOG"
+            return 1
         fi
     else
         pkill -f "sshd -p 2222" 2>/dev/null || true
         sshd -p 2222 2>/dev/null || true
-        echo -e "${GREEN}✓ OpenSSH Termux aktif di port 2222.${NC}"
+        sleep 1
+        if is_port_active 2222; then
+            echo -e "${GREEN}✓ OpenSSH Termux aktif di port 2222.${NC}"
+        else
+            echo -e "${RED}✗ OpenSSH gagal aktif. Pasang dulu: pkg install openssh proot${NC}"
+            return 1
+        fi
     fi
 }
 
 stop_vps() {
     echo -e "${YELLOW}>> Menghentikan VPS OpenSSH...${NC}"
-    pkill -9 -f "sshd" 2>/dev/null || true
+    pkill -9 -f "sshd -p 2222" 2>/dev/null || true
+    pkill -9 -f "/usr/sbin/sshd" 2>/dev/null || true
     echo -e "${GREEN}✓ VPS OpenSSH dihentikan.${NC}"
 }
 

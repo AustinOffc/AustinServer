@@ -2,7 +2,6 @@
 # ==============================================================================
 # Austin Mini Server — Universal Auto Update Script
 # Author / Developer: Austin
-# Bekerja untuk instalasi Git Clone maupun download ZIP manual
 # ==============================================================================
 
 GREEN='\033[0;32m'

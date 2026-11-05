@@ -36,7 +36,6 @@ echo ""
 
 SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 chmod +x "$SRC_DIR"/*.sh "$SRC_DIR"/scripts/*.sh 2>/dev/null || true
-# Server selalu dipasang ke ~/AustinServer (tetap sama walau zip diekstrak di folder lain)
 BASE_DIR="$HOME/AustinServer"
 UBUNTU_DIR="$HOME/ubuntu-fs"
 

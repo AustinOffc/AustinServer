@@ -6,5 +6,7 @@
   "port": 2222,
   "publicHost": null,
   "publicPort": null,
-  "publicCommand": null
+  "publicCommand": null,
+  "autoStart": true,
+  "manualStop": false
 }

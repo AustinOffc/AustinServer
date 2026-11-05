@@ -1,8 +1,8 @@
 # Austin Mini Server
 
-**HP Android lama di laci? Jadikan server.** Austin Mini Server mengubah ponsel Android (tanpa root) menjadi server kecil yang bisa dipantau dan dikelola dari browser: ada dashboard, terminal web, file manager, pengelola app, dan Ubuntu VPS lengkap dengan SSH. Tampilannya bertema terminal ala Kali Linux: gelap, monospace, aksen biru.
+**HP Android lama di laci? Jadikan server.** Austin Mini Server mengubah ponsel Android (tanpa root) menjadi server kecil yang bisa dipantau dan dikelola dari browser: ada dashboard, terminal web, file manager, pengelola app, dan Ubuntu VPS lengkap dengan SSH.
 
-Versi **1.0.0** · dibuat oleh **Austin** · lisensi MIT
+Versi **1.0.1** · dibuat oleh **Austin** · lisensi MIT
 
 ---
 
