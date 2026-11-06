@@ -167,12 +167,29 @@ export PATH="/data/data/com.termux/files/usr/bin:$PREFIX/bin:$PREFIX/bin/applets
 
 UBUNTU_DIR="$HOME/ubuntu-fs"
 unset LD_PRELOAD
-export PROOT_NO_SECCOMP=1
+
+# Pakai varian flag proot yang sudah terbukti jalan di perangkat ini (dipilih
+# otomatis oleh start.sh; lihat scripts/proot-lib.sh). Tanpa pustaka -> flag lama.
+PROOT_LIB=""
+for _d in "$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")" "$HOME/AustinServer/scripts" "$HOME"; do
+    [ -f "$_d/proot-lib.sh" ] && { PROOT_LIB="$_d/proot-lib.sh"; break; }
+done
+PROOT_VARIANT_FILE=""
+for _d in "$HOME/AustinServer/logs" "$HOME/AustinNode/logs"; do
+    [ -f "$_d/proot-variant" ] && { PROOT_VARIANT_FILE="$_d/proot-variant"; break; }
+done
+if [ -n "$PROOT_LIB" ]; then
+    . "$PROOT_LIB"
+    austin_proot_variant_flags "$(austin_proot_cached_variant "$PROOT_VARIANT_FILE")"
+    austin_proot_apply_env
+else
+    AUSTIN_PV_FLAGS=(--link2symlink -0)
+    export PROOT_NO_SECCOMP=1
+fi
 
 PROOT_CMD=(
     proot
-    --link2symlink
-    -0
+    "${AUSTIN_PV_FLAGS[@]}"
     -r "$UBUNTU_DIR"
     -b /dev
     -b /dev/pts

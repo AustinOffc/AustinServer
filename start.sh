@@ -58,6 +58,27 @@ UBUNTU_DIR="$HOME/ubuntu-fs"
 START_UBUNTU="$SERVER_DIR/scripts/start-ubuntu.sh"
 [ ! -f "$START_UBUNTU" ] && START_UBUNTU="$HOME/start-ubuntu.sh"
 
+# Pustaka proot bersama (varian flag proot, deteksi proot-di-dalam-proot, dll.)
+PROOT_LIB="$SERVER_DIR/scripts/proot-lib.sh"
+[ ! -f "$PROOT_LIB" ] && PROOT_LIB="$HOME/proot-lib.sh"
+if [ -f "$PROOT_LIB" ]; then
+    # shellcheck disable=SC1090
+    . "$PROOT_LIB"
+else
+    # Cadangan minimal bila proot-lib.sh hilang: perilaku lama (satu varian)
+    austin_proot_variant_flags() { AUSTIN_PV_FLAGS=(--link2symlink -0); AUSTIN_PV_NOSECCOMP=1; [ "$1" = "classic" ]; }
+    austin_proot_apply_env() { export PROOT_NO_SECCOMP=1; }
+    austin_proot_cached_variant() { echo classic; }
+    austin_in_proot() { return 1; }
+    austin_clean_path() { :; }
+    austin_proot_select() { AUSTIN_PROOT_VARIANT=classic; return 0; }
+fi
+# Shim Node.js (proot) tidak boleh ikut ke PATH start.sh, kalau tidak node/panel
+# berjalan di dalam proot dan proot untuk VPS jadi bertumpuk.
+austin_clean_path
+PROOT_VARIANT_FILE="$LOG_DIR/proot-variant"
+PROOT_VARIANT="$(austin_proot_cached_variant "$PROOT_VARIANT_FILE")"
+
 export PANEL_USER="admin"
 export PANEL_PASS="admin123"
 export PANEL_PORT="8080"
@@ -129,10 +150,11 @@ release_vps_lock() {
 run_in_ubuntu() {
     (
         unset LD_PRELOAD
-        export PROOT_NO_SECCOMP=1
-        proot --link2symlink -0 -r "$UBUNTU_DIR" \
+        austin_proot_variant_flags "$PROOT_VARIANT" || austin_proot_variant_flags classic
+        austin_proot_apply_env
+        proot "${AUSTIN_PV_FLAGS[@]}" -r "$UBUNTU_DIR" \
             -b /dev -b /dev/pts -b /proc -b /sys \
-            -w /root \
+            -w / \
             /usr/bin/env -i HOME=/root \
             PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
             /bin/bash -c "$1"
@@ -202,18 +224,46 @@ _start_vps_locked() {
     vps_log "===== Mulai menyalakan VPS (UBUNTU_DIR=$UBUNTU_DIR, HOME=$HOME) ====="
     echo -e "${YELLOW}>> Menjalankan OpenSSH Server di dalam Ubuntu VPS (Port 2222)...${NC}"
 
+    local use_proot=1
+
     if [ ! -d "$UBUNTU_DIR" ]; then
         vps_log "GAGAL: folder Ubuntu tidak ditemukan di $UBUNTU_DIR (jalankan 'bash install.sh' lagi)."
+        use_proot=0
     elif ! command -v proot >/dev/null 2>&1; then
         vps_log "GAGAL: perintah 'proot' tidak ditemukan di PATH. Pasang dengan: pkg install proot"
+        use_proot=0
+    elif austin_in_proot; then
+        # Skrip ini sendiri berjalan di dalam proot (mis. dipanggil dari terminal
+        # Ubuntu / node shim). proot tidak bisa dijalankan di dalam proot.
+        vps_log "GAGAL: start.sh berjalan DI DALAM proot (TracerPid != 0). proot tidak bisa bertumpuk (error 'Function not implemented'). Jalankan ./start.sh dari terminal Termux asli, bukan dari dalam Ubuntu."
+        echo -e "${RED}✗ start.sh dijalankan dari dalam proot/Ubuntu. Buka Termux asli lalu jalankan: ./start.sh vps${NC}"
+        return 1
     fi
 
-    if [ -d "$UBUNTU_DIR" ] && command -v proot >/dev/null 2>&1; then
-        # Matikan sshd lama saja (jangan pkill pola "sshd" yang terlalu luas)
+    if [ "$use_proot" = "1" ]; then
+        # Bersihkan sshd lama saja (jangan pkill pola "sshd" yang terlalu luas)
         pkill -9 -f "[s]shd -D -e -p 2222" 2>/dev/null || true
         pkill -9 -f "[/]usr/sbin/sshd" 2>/dev/null || true
         sleep 0.3
 
+        # Catat info perangkat sekali per start supaya penyebab gagal gampang dilacak
+        vps_log "Info: $(proot --version 2>&1 | head -n1) | kernel $(uname -r) $(uname -m) | android $(getprop ro.build.version.release 2>/dev/null) | tracer=$(awk '/^TracerPid:/ {print $2}' /proc/self/status 2>/dev/null)"
+
+        # Cari varian flag proot yang benar-benar jalan di perangkat ini.
+        # Varian "classic" (flag lama) dicoba dulu; bila ENOSYS, varian lain dicoba.
+        if austin_proot_select "$UBUNTU_DIR" "$PROOT_VARIANT_FILE" vps_log; then
+            PROOT_VARIANT="$AUSTIN_PROOT_VARIANT"
+            echo -e "${GREEN}✓ Mode proot: ${PROOT_VARIANT}${NC}"
+        else
+            vps_log "GAGAL: semua varian proot ditolak perangkat ini (lihat baris 'varian ... GAGAL' di atas)."
+            echo -e "${RED}✗ proot tidak bisa menjalankan Ubuntu di perangkat ini (semua varian gagal).${NC}"
+            echo -e "${YELLOW}   Penyebab terakhir: $(printf '%s' "$AUSTIN_SMOKE_OUT" | tail -n 2 | tr '\n' ' ' | cut -c1-200)${NC}"
+            echo -e "${YELLOW}   Detail lengkap: $VPS_LOG${NC}"
+            use_proot=0
+        fi
+    fi
+
+    if [ "$use_proot" = "1" ]; then
         prepare_ubuntu_ssh
 
         # Uji konfigurasi sshd dulu; alasan gagalnya masuk ke vps.log
@@ -225,10 +275,10 @@ _start_vps_locked() {
         # tidak bocor ke shell utama (agar node tetap bisa dieksekusi).
         (
             unset LD_PRELOAD
-            export PROOT_NO_SECCOMP=1
+            austin_proot_variant_flags "$PROOT_VARIANT" || austin_proot_variant_flags classic
+            austin_proot_apply_env
             nohup proot \
-                --link2symlink \
-                -0 \
+                "${AUSTIN_PV_FLAGS[@]}" \
                 -r "$UBUNTU_DIR" \
                 -b /dev \
                 -b /dev/pts \
@@ -237,7 +287,7 @@ _start_vps_locked() {
                 -b /sdcard \
                 -b /data/data/com.termux/files:/data/data/com.termux/files \
                 -b "$HOME":/root/termux-home \
-                -w /root \
+                -w / \
                 /usr/bin/env -i \
                 HOME=/root \
                 HOSTNAME=austin \
@@ -255,27 +305,38 @@ _start_vps_locked() {
             is_port_active 2222 && break
         done
         if is_port_active 2222; then
-            vps_log "OK: sshd aktif di port 2222."
+            vps_log "OK: sshd aktif di port 2222 (proot varian $PROOT_VARIANT)."
             echo -e "${GREEN}✓ VPS OpenSSH aktif di background (Port 2222).${NC}"
-        else
-            vps_log "GAGAL: sshd tidak membuka port 2222 dalam 30 detik."
-            echo -e "${RED}✗ VPS OpenSSH belum aktif. Cek log: $VPS_LOG${NC}"
-            [ -f "$VPS_LOG" ] && tail -n 12 "$VPS_LOG"
-            return 1
+            return 0
         fi
-    else
-        vps_log "Memakai fallback OpenSSH Termux (bukan Ubuntu PRoot)."
-        pkill -f "[s]shd -p 2222" 2>/dev/null || true
-        sshd -p 2222 >> "$VPS_LOG" 2>&1 || true
-        sleep 1
-        if is_port_active 2222; then
-            echo -e "${GREEN}✓ OpenSSH Termux aktif di port 2222.${NC}"
-        else
-            vps_log "GAGAL: OpenSSH Termux juga tidak aktif. Pasang dulu: pkg install openssh proot"
-            echo -e "${RED}✗ OpenSSH gagal aktif. Pasang dulu: pkg install openssh proot${NC}"
-            return 1
-        fi
+
+        # sshd tidak naik. Mungkin varian tersimpan sudah tidak cocok -> buang cache
+        # supaya start berikutnya menguji ulang semua varian dari awal.
+        rm -f "$PROOT_VARIANT_FILE" 2>/dev/null || true
+        vps_log "GAGAL: sshd tidak membuka port 2222 dalam 30 detik."
+        echo -e "${RED}✗ VPS OpenSSH belum aktif. Cek log: $VPS_LOG${NC}"
+        [ -f "$VPS_LOG" ] && tail -n 12 "$VPS_LOG"
+        return 1
     fi
+
+    # --- Mode darurat: proot/Ubuntu tidak bisa dipakai -> OpenSSH milik Termux ---
+    vps_log "Memakai fallback OpenSSH Termux (bukan Ubuntu PRoot)."
+    if ! command -v sshd >/dev/null 2>&1; then
+        vps_log "GAGAL: OpenSSH Termux juga tidak ada. Pasang dulu: pkg install openssh proot"
+        echo -e "${RED}✗ OpenSSH gagal aktif. Pasang dulu: pkg install openssh proot${NC}"
+        return 1
+    fi
+    pkill -f "[s]shd -p 2222" 2>/dev/null || true
+    sshd -p 2222 >> "$VPS_LOG" 2>&1 || true
+    sleep 1
+    if is_port_active 2222; then
+        vps_log "MODE DARURAT: SSH aktif di port 2222 memakai OpenSSH Termux. Login dengan user Termux ($(whoami)), bukan root Ubuntu. Setel password sekali dengan perintah: passwd"
+        echo -e "${YELLOW}⚠ Mode darurat: OpenSSH Termux aktif di port 2222 (login: $(whoami)). Setel password dulu: passwd${NC}"
+        return 0
+    fi
+    vps_log "GAGAL: OpenSSH Termux juga tidak aktif. Pasang dulu: pkg install openssh proot"
+    echo -e "${RED}✗ OpenSSH gagal aktif. Pasang dulu: pkg install openssh proot${NC}"
+    return 1
 }
 
 stop_vps() {

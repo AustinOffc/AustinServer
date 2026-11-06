@@ -141,10 +141,17 @@ BINDS=(-b /dev -b /proc -b /sys)
 [ -d "$TERMUX_FILES" ] && BINDS+=(-b "$TERMUX_FILES:$TERMUX_FILES")
 [ -d /sdcard ] && BINDS+=(-b /sdcard)
 
-export PROOT_NO_SECCOMP=1
 unset LD_PRELOAD
+# Pakai varian flag proot yang terbukti jalan di perangkat ini (dipilih oleh start.sh)
+AUSTIN_PV_FLAGS=(--link2symlink -0)
+export PROOT_NO_SECCOMP=1
+if [ -f "${BASE_DIR}/scripts/proot-lib.sh" ]; then
+  . "${BASE_DIR}/scripts/proot-lib.sh"
+  austin_proot_variant_flags "$(austin_proot_cached_variant "${BASE_DIR}/logs/proot-variant")"
+  austin_proot_apply_env
+fi
 
-exec "$PROOT" --link2symlink -0 -r "$UBUNTU_DIR" "\${BINDS[@]}" -w "$CWD" \\
+exec "$PROOT" "\${AUSTIN_PV_FLAGS[@]}" -r "$UBUNTU_DIR" "\${BINDS[@]}" -w "$CWD" \\
   /usr/bin/env -u LD_PRELOAD -u LD_LIBRARY_PATH \\
   PATH="$NODE_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \\
   "$NODE_HOME/bin/${tool}" "$@"

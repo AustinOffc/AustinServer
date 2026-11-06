@@ -242,3 +242,13 @@ Node bawaan Termux (`pkg install nodejs`) bisa terlalu baru untuk beberapa paket
 3. **Per app**: tab **Apps → Atur → Versi Node.js**. Dependensi dipasang ulang otomatis dan proses PM2 dibuat ulang.
 
 Catatan: app yang berjalan di Node tambahan hidup di lingkungan Ubuntu, jadi tool Termux (ffmpeg, imagemagick, dll) tidak terlihat; pasang lewat `apt` di Ubuntu bila perlu.
+
+## Troubleshooting: VPS "MATI" / error `Function not implemented`
+
+Error ini berasal dari `proot` (bukan dari sshd): `mkdir`, `getcwd`, atau exec di dalam Ubuntu ditolak kernel/ROM HP. Sejak v1.0.3:
+
+- `start.sh vps` otomatis mencoba beberapa varian flag proot (`classic`, `seccomp`, `distro`, `distro-noseccomp`, `minimal`) dan memakai yang lolos tes. Varian terpilih disimpan di `logs/proot-variant` dan dipakai juga oleh `ubuntu` (start-ubuntu.sh) serta shim Node.js.
+- Jika `start.sh` ternyata berjalan di dalam proot/Ubuntu (proot bertumpuk), skrip berhenti dengan pesan jelas. Jalankan dari terminal Termux asli.
+- Direktori shim Node.js tidak lagi ikut ke PATH `start.sh` / peluncur VPS panel.
+- Jika semua varian gagal, SSH port 2222 dinyalakan dengan OpenSSH Termux (mode darurat; setel password dengan `passwd`).
+- Diagnosa lengkap ada di `logs/vps.log` (versi proot, kernel, hasil tiap varian).

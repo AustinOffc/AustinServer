@@ -377,6 +377,13 @@ const ANDROID_PATH = [
   process.env.PATH || '',
 ].filter(Boolean).join(':');
 
+// Buang direktori shim Node.js (proot) dari PATH untuk skrip sistem seperti start.sh.
+// Kalau shim ikut, `node`/`proot` berjalan di dalam proot -> proot bertumpuk ->
+// "Function not implemented" dan VPS gagal nyala.
+function stripNodeShims(pathStr) {
+  return String(pathStr || '').split(':').filter((d) => d && !/\/\.shims(\/|$)|\/runtime\/node\/v\d/.test(d)).join(':');
+}
+
 function runShellAsync(cmd, timeoutMs) {
   return new Promise((resolve) => {
     try {
@@ -986,7 +993,7 @@ function launchVpsProcess(onExit) {
     child = spawn('bash', [startScript, 'vps'], {
       detached: true,
       stdio: ['ignore', outFd, outFd],
-      env: Object.assign({}, process.env, { PATH: ANDROID_PATH }),
+      env: Object.assign({}, process.env, { PATH: stripNodeShims(ANDROID_PATH) }),
     });
   } catch (e) {
     if (typeof outFd === 'number') { try { fs.closeSync(outFd); } catch (e2) {} }
