@@ -74,23 +74,43 @@ austin_clean_path() {
 
 # Tes dasar satu varian: proot harus bisa masuk ke rootfs, mkdir, dan menjalankan sh.
 # Hasil keluaran disimpan di AUSTIN_SMOKE_OUT.
+#
+# PENTING (Android 10+ / Termux): proot HARUS dipanggil langsung oleh bash, bukan
+# lewat pembungkus seperti `timeout` atau `nohup`. Di subshell kita melakukan
+# `unset LD_PRELOAD` (libtermux-exec), sehingga program pembungkus itu tidak punya
+# izin exec ke binary di /data dan gagal dengan "Permission denied". Bash sendiri
+# sudah memuat libtermux-exec di awal, jadi exec dari bash tetap diizinkan.
+# Karena itu batas waktu dibuat manual dengan loop kill di bawah.
 austin_proot_smoke() {
-    local variant="$1" rootfs="$2" out tcmd=""
+    local variant="$1" rootfs="$2" tmp pid i=0
     austin_proot_variant_flags "$variant" || return 1
-    command -v timeout >/dev/null 2>&1 && tcmd="timeout 25"
-    out="$(
-        (
-            unset LD_PRELOAD
-            austin_proot_apply_env
-            $tcmd proot "${AUSTIN_PV_FLAGS[@]}" -r "$rootfs" \
-                -b /dev -b /proc -b /sys -w / \
-                /usr/bin/env -i HOME=/root \
-                PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
-                /bin/sh -c 'mkdir -p /run/sshd && cd / && echo AUSTIN_PROOT_OK'
-        ) 2>&1
-    )"
-    AUSTIN_SMOKE_OUT="$out"
-    case "$out" in *AUSTIN_PROOT_OK*) return 0 ;; esac
+    tmp="${TMPDIR:-${PREFIX:-/data/data/com.termux/files/usr}/tmp}/austin-smoke.$$"
+    mkdir -p "$(dirname "$tmp")" 2>/dev/null || true
+    : > "$tmp" 2>/dev/null || true
+    (
+        unset LD_PRELOAD
+        austin_proot_apply_env
+        proot "${AUSTIN_PV_FLAGS[@]}" -r "$rootfs" \
+            -b /dev -b /proc -b /sys -w / \
+            /usr/bin/env -i HOME=/root \
+            PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
+            /bin/sh -c 'mkdir -p /run/sshd && cd / && echo AUSTIN_PROOT_OK'
+    ) > "$tmp" 2>&1 &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null; do
+        sleep 1
+        i=$((i + 1))
+        if [ "$i" -ge 25 ]; then
+            pkill -9 -P "$pid" 2>/dev/null || true
+            kill -9 "$pid" 2>/dev/null || true
+            echo "(timeout 25 detik)" >> "$tmp"
+            break
+        fi
+    done
+    wait "$pid" 2>/dev/null
+    AUSTIN_SMOKE_OUT="$(cat "$tmp" 2>/dev/null)"
+    rm -f "$tmp" 2>/dev/null
+    case "$AUSTIN_SMOKE_OUT" in *AUSTIN_PROOT_OK*) return 0 ;; esac
     return 1
 }
 

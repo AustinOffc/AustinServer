@@ -273,11 +273,15 @@ _start_vps_locked() {
 
         # Subshell: unset LD_PRELOAD & env proot HANYA berlaku untuk proot,
         # tidak bocor ke shell utama (agar node tetap bisa dieksekusi).
+        # JANGAN pakai `nohup proot`: setelah LD_PRELOAD di-unset, nohup tidak
+        # boleh meng-exec proot di Android 10+ ("Permission denied"). Bash yang
+        # memanggil proot langsung; HUP diabaikan manual lewat trap.
         (
             unset LD_PRELOAD
             austin_proot_variant_flags "$PROOT_VARIANT" || austin_proot_variant_flags classic
             austin_proot_apply_env
-            nohup proot \
+            trap '' HUP
+            proot \
                 "${AUSTIN_PV_FLAGS[@]}" \
                 -r "$UBUNTU_DIR" \
                 -b /dev \

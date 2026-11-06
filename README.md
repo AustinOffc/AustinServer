@@ -245,10 +245,11 @@ Catatan: app yang berjalan di Node tambahan hidup di lingkungan Ubuntu, jadi too
 
 ## Troubleshooting: VPS "MATI" / error `Function not implemented`
 
-Error ini berasal dari `proot` (bukan dari sshd): `mkdir`, `getcwd`, atau exec di dalam Ubuntu ditolak kernel/ROM HP. Sejak v1.0.3:
+Error ini berasal dari `proot` (bukan dari sshd): `mkdir`, `getcwd`, atau exec di dalam Ubuntu ditolak kernel/ROM HP. Sejak v1.0.3 (dan v1.0.4):
 
 - `start.sh vps` otomatis mencoba beberapa varian flag proot (`classic`, `seccomp`, `distro`, `distro-noseccomp`, `minimal`) dan memakai yang lolos tes. Varian terpilih disimpan di `logs/proot-variant` dan dipakai juga oleh `ubuntu` (start-ubuntu.sh) serta shim Node.js.
 - Jika `start.sh` ternyata berjalan di dalam proot/Ubuntu (proot bertumpuk), skrip berhenti dengan pesan jelas. Jalankan dari terminal Termux asli.
 - Direktori shim Node.js tidak lagi ikut ke PATH `start.sh` / peluncur VPS panel.
 - Jika semua varian gagal, SSH port 2222 dinyalakan dengan OpenSSH Termux (mode darurat; setel password dengan `passwd`).
 - Diagnosa lengkap ada di `logs/vps.log` (versi proot, kernel, hasil tiap varian).
+- v1.0.4: `proot` dipanggil langsung oleh bash (bukan lewat `nohup`/`timeout`). Di Android 10+ pembungkus itu gagal dengan `Permission denied` karena `LD_PRELOAD` (libtermux-exec) sengaja di-unset untuk proot.
